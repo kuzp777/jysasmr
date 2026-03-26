@@ -2,30 +2,43 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>我的第一个网页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的检索小站</title>
     <style>
-        body {
-            background: #1a73e8;
-            color: white;
-            font-size: 24px;
-            text-align: center;
-            padding-top: 100px;
+        body { font-family: system-ui, sans-serif; margin: 40px auto; max-width: 900px; line-height: 1.6; }
+        h1 { text-align: center; }
+        #search { margin: 30px 0; }
+        input[type="search"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            border: 2px solid #ddd;
+            border-radius: 8px;
         }
-        .box {
-            background: white;
-            color: #1a73e8;
-            padding: 30px;
-            border-radius: 15px;
-            width: 80%;
-            margin: 0 auto;
-        }
+        .pagefind-ui__results { margin-top: 20px; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h1>恭喜！网页上传成功啦！🎉</h1>
-        <p>你已经成功把前端部署到 GitHub 了！</p>
-        <p>这是你的第一个在线页面</p>
-    </div>
+    <h1>🔍 我的内容检索小站</h1>
+    <p style="text-align: center;">上传内容到 <code>content/</code> 文件夹后，搜索即可使用</p>
+
+    <!-- Pagefind 搜索容器 -->
+    <div id="search"></div>
+
+    <!-- Pagefind UI 资源（部署后路径为 /pagefind/） -->
+    <link href="/pagefind/pagefind-ui.css" rel="stylesheet">
+    <script src="/pagefind/pagefind-ui.js"></script>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            new PagefindUI({
+                element: "#search",
+                showSubResults: true,     // 显示内容片段预览
+                excerptLength: 150,       // 预览长度
+                languages: ["zh"],        // 启用中文支持
+                debounceTimeoutMs: 300
+            });
+        });
+    </script>
 </body>
 </html>
