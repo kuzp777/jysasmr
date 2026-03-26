@@ -3,42 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的检索小站</title>
+    <title>ASMR 视频检索站</title>
     <style>
-        body { font-family: system-ui, sans-serif; margin: 40px auto; max-width: 900px; line-height: 1.6; }
-        h1 { text-align: center; }
-        #search { margin: 30px 0; }
-        input[type="search"] {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.1em;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            margin: 40px auto; 
+            max-width: 1200px; 
+            line-height: 1.6; 
+            background: #f9f9f9;
         }
-        .pagefind-ui__results { margin-top: 20px; }
+        h1 { 
+            text-align: center; 
+            color: #333;
+        }
+        #searchInput { 
+            width: 100%; 
+            padding: 16px; 
+            font-size: 1.1em; 
+            margin: 30px 0 20px 0; 
+            border-radius: 10px; 
+            border: 2px solid #ddd; 
+            box-sizing: border-box;
+        }
+        #searchInput:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        .video-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .video-card:hover {
+            transform: translateY(-4px);
+        }
+        .video-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+        .video-card h3 {
+            margin: 12px 14px 8px;
+            font-size: 1.05em;
+            line-height: 1.4;
+        }
+        .tags {
+            padding: 0 14px 14px;
+        }
+        .tag {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #555;
+            padding: 3px 9px;
+            margin: 2px 2px;
+            border-radius: 999px;
+            font-size: 0.82em;
+        }
+        a { 
+            color: #0066cc; 
+            text-decoration: none; 
+        }
+        a:hover { 
+            text-decoration: underline; 
+        }
     </style>
 </head>
 <body>
-    <h1>🔍 我的内容检索小站</h1>
-    <p style="text-align: center;">上传内容到 <code>content/</code> 文件夹后，搜索即可使用</p>
+    <h1>🔍 ASMR 视频检索小站</h1>
+    <p style="text-align: center; color: #666;">输入视频名称或标签进行搜索</p>
 
-    <!-- Pagefind 搜索容器 -->
-    <div id="search"></div>
+    <input type="text" id="searchInput" placeholder="搜索视频名称或标签（如：ASMR、耳语、雨声）...">
 
-    <!-- Pagefind UI 资源（部署后路径为 /pagefind/） -->
-    <link href="/pagefind/pagefind-ui.css" rel="stylesheet">
-    <script src="/pagefind/pagefind-ui.js"></script>
+    <div id="results" class="result-grid"></div>
 
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            new PagefindUI({
-                element: "#search",
-                showSubResults: true,     // 显示内容片段预览
-                excerptLength: 150,       // 预览长度
-                languages: ["zh"],        // 启用中文支持
-                debounceTimeoutMs: 300
-            });
-        });
-    </script>
+    <!-- 引入 Fuse.js（用于模糊搜索） -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+    <!-- 引入我们自己的搜索逻辑 -->
+    <script src="js/search.js"></script>
 </body>
 </html>
