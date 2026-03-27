@@ -1,72 +1,16 @@
 [
   {
     "id": 1,
-    "title": "【直播回放】沉浸式陪伴3D 2026年03月22日22点场",
-    "url": "https://www.bilibili.com/video/BV1CwQDByEUS",
-    "cover": "/images/002-直播回放沉浸式陪伴3D2026年03月22日22点场.AVIF",
-    "tags": ["ASMR", "充电专属", "直播回放"]
+    "title": "测试视频 - 应该能看到图片",
+    "url": "https://www.bilibili.com",
+    "cover": "https://i0.hdslb.com/bfs/archive/4585b47f7bc72c7e7be6e6a09c5ba8c1c033099e.jpg@672w_378h_1c.avif",
+    "tags": ["测试"]
   },
   {
     "id": 2,
-    "title": "Lofi ASMR｜微暴力怼脸刮擦🧤",
-    "url": "https://www.bilibili.com/video/BV1znAszdEwa",
-    "cover": "/images/049-LOFIASMR微暴力怼脸刮擦.AVIF",
-    "tags": ["ASMR", "Lofi"]
-  },
-  {
-    "id": 3,
-    "title": "⚡️ASMR｜灯光指令｜叠层声音｜大脑放松🧠",
-    "url": "https://www.bilibili.com/video/BV1cDwZzHEcT",
-    "cover": "/images/010-️ASMR灯光指令叠层声音大脑放松.AVIF",
-    "tags": ["ASMR", "充电专属"]
-  },
-  {
-    "id": 4,
-    "title": "【直播回放】沉浸式闲聊 2026年03月14日22点场",
-    "url": "https://www.bilibili.com/video/BV1tFw8zQE6F",
-    "cover": "/images/003-直播回放沉浸式闲聊2026年03月14日22点场.AVIF",
-    "tags": ["ASMR", "充电专属", "直播回放"]
-  },
-  {
-    "id": 5,
-    "title": "【直播回放】沉浸式闲聊 2026年03月15日00点场",
-    "url": "https://www.bilibili.com/video/BV1tFw8zQEfi",
-    "cover": "/images/004-直播回放沉浸式闲聊2026年03月15日00点场.AVIF",
-    "tags": ["ASMR", "充电专属", "直播回放"]
-  },
-  {
-    "id": 6,
-    "title": "ASMR｜帮你告别疲惫的一天｜照顾助眠｜轻语😴",
-    "url": "https://www.bilibili.com/video/BV1YUPzzoEAj",
-    "cover": "/images/023-ASMR帮你告别疲惫的一天照顾助眠轻语.AVIF",
-    "tags": ["ASMR"]
-  },
-  {
-    "id": 7,
-    "title": "【直播回放】沉浸式陪伴 2026年03月04日22点场",
-    "url": "https://www.bilibili.com/video/BV1cCPizeEm9",
-    "cover": "/images/001-直播回放沉浸式陪伴2026年03月04日22点场.AVIF",
-    "tags": ["ASMR", "充电专属", "直播回放"]
-  },
-  {
-    "id": 8,
-    "title": "ASMR｜跟着我的指令｜专注力助眠💡",
-    "url": "https://www.bilibili.com/video/BV1BLAazVEJi",
-    "cover": "/images/028-ASMR跟着我的指令专注力助眠.AVIF",
-    "tags": ["ASMR"]
-  },
-  {
-    "id": 9,
-    "title": "ASMR｜泡沫洗头｜喷水｜刮面（无对话）🫧",
-    "url": "https://www.bilibili.com/video/BV1QzfpBcEco",
-    "cover": "/images/037-ASMR泡沫洗头喷水刮面无对话.AVIF",
-    "tags": ["ASMR"]
-  },
-  {
-    "id": 10,
-    "title": "⚡️ASMR｜正念练习 ①无评判认知与接纳｜双耳轻语｜水晶钵能量净化🧘‍♀️",
-    "url": "https://www.bilibili.com/video/BV1BEZZBBEBf",
-    "cover": "/images/018-️ASMR正念练习无评判认知与接纳双耳轻语水晶钵能量净化🧘‍♀.AVIF",
-    "tags": ["ASMR", "充电专属"]
+    "title": "测试视频 2",
+    "url": "https://www.bilibili.com",
+    "cover": "/images/002.avif",
+    "tags": ["测试"]
   }
 ]
