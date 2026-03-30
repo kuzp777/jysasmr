@@ -10,13 +10,16 @@
     <header class="page-header">
         <div class="container">
             <h1 class="site-title">JY's ASMR 视频收录库</h1>
-            <div class="search-box">
-                <input 
-                    type="text" 
-                    id="searchInput" 
-                    placeholder="输入视频名称搜索..."
-                    autocomplete="off"
-                >
+            <div class="header-actions">
+                <div class="search-box">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="输入视频名称搜索..."
+                        autocomplete="off"
+                    >
+                </div>
+                <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
             </div>
         </div>
     </header>
@@ -25,25 +28,28 @@
         <div class="container">
             <div id="statusTip" class="status-tip">正在加载视频数据...</div>
             <div id="videoGrid" class="video-grid"></div>
+            <!-- 新增：分页控件 -->
+            <div id="pagination" class="pagination" style="display: none;"></div>
         </div>
     </main>
-    <!-- 新增随机视频弹窗 -->
-<div id="randomModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-close" id="modalClose">×</div>
-        <div class="modal-header">✨ 为你挑选的睡前视频</div>
-        <div id="modalVideoCover" class="modal-cover"></div>
-        <div id="modalVideoTitle" class="modal-title"></div>
-        <div class="modal-actions">
-            <button id="reRandomBtn" class="btn-secondary">🔄 再抽一个</button>
-            <button id="goWatchBtn" class="btn-primary">▶️ 去看视频</button>
+
+    <!-- 随机视频弹窗 -->
+    <div id="randomModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-close" id="modalClose">×</div>
+            <div class="modal-header">✨ 为你挑选的睡前视频</div>
+            <div id="modalVideoCover" class="modal-cover"></div>
+            <div id="modalVideoTitle" class="modal-title"></div>
+            <div class="modal-actions">
+                <button id="reRandomBtn" class="btn-secondary">🔄 再抽一个</button>
+                <button id="goWatchBtn" class="btn-primary">▶️ 去看视频</button>
+            </div>
         </div>
     </div>
-</div>
 
     <footer class="page-footer">
         <div class="container">
-            <p>© JY's ASMR 视频收录站 | 基于GitHub Pages构建</p>
+            <p>© 2024 JY's ASMR 视频收录站 | 基于GitHub Pages构建</p>
         </div>
     </footer>
 
