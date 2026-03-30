@@ -8,10 +8,11 @@ const VideoApp = {
 },
 
     // 初始化入口
-    init() {
-        this.loadVideoData();
-        this.bindSearchEvent();
-    },
+init() {
+    this.loadVideoData();
+    this.bindSearchEvent();
+    this.bindRandomEvent(); // 新增：绑定随机抽视频事件
+},
 
     // ========== 模块1：加载视频数据 适配你的JSON结构 ==========
     async loadVideoData() {
@@ -117,6 +118,82 @@ const VideoApp = {
         });
     }
 };
+// ========== 新增：随机抽视频功能模块 ==========
+bindRandomEvent() {
+    const randomBtn = document.getElementById('randomBtn');
+    const modalClose = document.getElementById('modalClose');
+    const reRandomBtn = document.getElementById('reRandomBtn');
+    const goWatchBtn = document.getElementById('goWatchBtn');
+    const modalOverlay = document.getElementById('randomModal');
+
+    // 点击随机按钮
+    randomBtn.addEventListener('click', () => {
+        if (this.state.videoList.length === 0) {
+            alert('视频数据还在加载中，请稍后再试');
+            return;
+        }
+        this.getRandomVideo();
+        this.showModal();
+    });
+
+    // 关闭弹窗
+    modalClose.addEventListener('click', () => this.hideModal());
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) this.hideModal();
+    });
+
+    // 再抽一个
+    reRandomBtn.addEventListener('click', () => {
+        this.getRandomVideo();
+    });
+
+    // 去看视频
+    goWatchBtn.addEventListener('click', () => {
+        if (this.state.currentRandomVideo) {
+            window.open(this.state.currentRandomVideo.link, '_blank');
+            this.hideModal();
+        }
+    });
+},
+
+// 随机抽取视频
+getRandomVideo() {
+    const { videoList } = this.state;
+    const randomIndex = Math.floor(Math.random() * videoList.length);
+    this.state.currentRandomVideo = videoList[randomIndex];
+    this.updateModalContent();
+},
+
+// 更新弹窗内容
+updateModalContent() {
+    const video = this.state.currentRandomVideo;
+    if (!video) return;
+
+    // 处理封面路径，适配GitHub Pages
+    let coverPath = video.cover.startsWith('/') ? video.cover.slice(1) : video.cover;
+    coverPath = './' + coverPath;
+
+    // 更新弹窗UI
+    const modalCover = document.getElementById('modalVideoCover');
+    const modalTitle = document.getElementById('modalVideoTitle');
+
+    modalCover.style.backgroundImage = `url('${coverPath}')`;
+    modalTitle.textContent = video.name;
+},
+
+// 显示弹窗
+showModal() {
+    const modal = document.getElementById('randomModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+},
+
+// 隐藏弹窗
+hideModal() {
+    const modal = document.getElementById('randomModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
 
 // 页面加载完成 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
