@@ -3,6 +3,7 @@
     --bg-color: #0f0f13;
     --card-bg: #1a1a22;
     --primary-color: #6366f1;
+    --primary-hover: #818cf8;
     --text-primary: #f1f1f3;
     --text-secondary: #a1a1aa;
     --text-muted: #71717a;
@@ -62,6 +63,15 @@ body {
     color: var(--primary-color);
 }
 
+.header-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 700px;
+    align-items: center;
+}
+
 .search-box {
     width: 100%;
     max-width: 600px;
@@ -84,6 +94,27 @@ body {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
+/* ========== 随机抽视频按钮 ========== */
+.random-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
+    white-space: nowrap;
+}
+
+.random-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.45);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+}
+
 /* ========== 主内容区模块 ========== */
 .page-main {
     flex: 1;
@@ -97,15 +128,16 @@ body {
     padding: 60px 0;
 }
 
-/* 视频网格 响应式布局 */
+/* 视频网格 */
 .video-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 24px;
     width: 100%;
+    margin-bottom: 32px;
 }
 
-/* 视频卡片模块 */
+/* 视频卡片 */
 .video-card {
     background-color: var(--card-bg);
     border-radius: var(--card-radius);
@@ -122,7 +154,6 @@ body {
     border-color: var(--primary-color);
 }
 
-/* 封面图容器 */
 .card-cover {
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -142,7 +173,6 @@ body {
     transform: scale(1.05);
 }
 
-/* 卡片内容区 */
 .card-content {
     padding: 12px 14px 16px;
     display: flex;
@@ -150,7 +180,6 @@ body {
     gap: 6px;
 }
 
-/* 视频标题 */
 .card-title {
     font-size: 15px;
     font-weight: 500;
@@ -163,85 +192,49 @@ body {
     line-height: 1.4;
 }
 
-/* 上传时间 */
 .card-time {
     font-size: 12px;
     color: var(--text-muted);
 }
 
-/* ========== 页脚模块 ========== */
-.page-footer {
-    background-color: var(--card-bg);
-    border-top: 1px solid var(--border-color);
-    padding: 20px 0;
-    margin-top: auto;
-}
-
-.page-footer p {
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 14px;
-}
-
-/* ========== 响应式适配 ========== */
-@media (min-width: 768px) {
-    .page-header .container {
-        flex-direction: row;
-        justify-content: space-between;
-    }
-    .site-title {
-        font-size: 28px;
-    }
-}
-
-@media (max-width: 767px) {
-    .video-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 16px;
-    }
-    .card-title {
-        font-size: 14px;
-    }
-    .card-content {
-        padding: 10px 12px 14px;
-    }
-}
-/* ========== 新增：头部操作区布局 ========== */
-.header-actions {
+/* ========== 新增：分页控件 清新风格 ========== */
+.pagination {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
-    max-width: 700px;
+    justify-content: center;
     align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-/* ========== 新增：随机抽视频按钮 清新风格 ========== */
-.random-btn {
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
-    color: white;
-    border: none;
-    border-radius: 20px;
+.page-btn {
+    padding: 8px 14px;
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     font-size: 14px;
-    font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
-    white-space: nowrap;
+    transition: var(--transition);
 }
 
-.random-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.45);
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+.page-btn:hover:not(.disabled):not(.active) {
+    background-color: var(--hover-bg);
+    border-color: var(--primary-color);
 }
 
-.random-btn:active {
-    transform: translateY(0);
+.page-btn.active {
+    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+    border-color: transparent;
+    color: white;
+    font-weight: 600;
 }
 
-/* ========== 新增：随机视频弹窗 清新风格 ========== */
+.page-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ========== 随机视频弹窗 ========== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -270,14 +263,8 @@ body {
 }
 
 @keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .modal-close {
@@ -291,9 +278,7 @@ body {
     line-height: 1;
 }
 
-.modal-close:hover {
-    color: #f1f1f3;
-}
+.modal-close:hover { color: #f1f1f3; }
 
 .modal-header {
     text-align: center;
@@ -341,7 +326,7 @@ body {
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: var(--transition);
 }
 
 .btn-secondary {
@@ -349,9 +334,7 @@ body {
     color: #f1f1f3;
 }
 
-.btn-secondary:hover {
-    background-color: #3d3d4a;
-}
+.btn-secondary:hover { background-color: #3d3d4a; }
 
 .btn-primary {
     background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
@@ -365,17 +348,41 @@ body {
     transform: translateY(-1px);
 }
 
-/* ========== 新增：响应式适配 ========== */
+/* ========== 页脚模块 ========== */
+.page-footer {
+    background-color: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 20px 0;
+    margin-top: auto;
+}
+
+.page-footer p {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ========== 响应式适配 ========== */
 @media (min-width: 768px) {
+    .page-header .container {
+        flex-direction: row;
+        justify-content: space-between;
+    }
     .header-actions {
         flex-direction: row;
         gap: 16px;
         align-items: center;
     }
-    .search-box {
-        flex: 1;
+    .search-box { flex: 1; }
+    .site-title { font-size: 28px; }
+}
+
+@media (max-width: 767px) {
+    .video-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 16px;
     }
-    .random-btn {
-        flex-shrink: 0;
-    }
+    .card-title { font-size: 14px; }
+    .card-content { padding: 10px 12px 14px; }
+    .page-btn { padding: 6px 10px; font-size: 13px; }
 }
