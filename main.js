@@ -1,42 +1,43 @@
-// 全局应用对象 所有功能挂载在这里 避免全局变量污染
+// 全局应用对象 模块化管理 避免全局污染
 const VideoApp = {
-    // 状态管理 存储原始数据和过滤后的数据
+    // 状态管理
     state: {
         videoList: [],
         filteredList: []
     },
 
-    // ========== 初始化入口 ==========
+    // 初始化入口
     init() {
         this.loadVideoData();
         this.bindSearchEvent();
     },
 
-    // ========== 模块1：加载视频数据 ==========
+    // ========== 模块1：加载视频数据 适配你的JSON结构 ==========
     async loadVideoData() {
         const statusTip = document.getElementById('statusTip');
         const videoGrid = document.getElementById('videoGrid');
 
         try {
-            // 相对路径加载json 适配GitHub Pages子目录
+            // 相对路径加载 适配GitHub Pages子目录
             const response = await fetch('./videos.json');
-            if (!response.ok) throw new Error('数据加载失败');
+            if (!response.ok) throw new Error('数据加载失败，请检查videos.json文件是否存在');
             
+            // 加载原始数据
             this.state.videoList = await response.json();
             this.state.filteredList = this.state.videoList;
 
-            // 数据加载完成 渲染列表
+            // 渲染页面
             statusTip.style.display = 'none';
             this.renderVideoList();
 
         } catch (error) {
             console.error('数据加载错误：', error);
-            statusTip.textContent = '视频数据加载失败，请检查videos.json文件是否存在且格式正确';
+            statusTip.textContent = '视频数据加载失败，请检查videos.json文件是否存在、格式是否正确';
             videoGrid.innerHTML = '';
         }
     },
 
-    // ========== 模块2：渲染视频列表 ==========
+    // ========== 模块2：渲染视频列表 全字段适配 ==========
     renderVideoList() {
         const videoGrid = document.getElementById('videoGrid');
         const statusTip = document.getElementById('statusTip');
@@ -52,20 +53,30 @@ const VideoApp = {
 
         // 隐藏提示 渲染卡片
         statusTip.style.display = 'none';
-        videoGrid.innerHTML = filteredList.map(video => `
-            <div class="video-card" data-url="${video.url}">
-                <div class="card-cover">
-                    <img src="${video.cover}" alt="${video.title}" loading="lazy">
+        videoGrid.innerHTML = filteredList.map(video => {
+            // 处理封面路径：去掉开头的/ 转为相对路径 解决GitHub Pages 404
+            const coverPath = video.cover.startsWith('/') ? video.cover.slice(1) : video.cover;
+            // 格式化上传时间 只保留年月日
+            const uploadDate = video.uploadTime ? new Date(video.uploadTime).toLocaleDateString() : '';
+
+            return `
+                <div class="video-card" data-link="${video.link}">
+                    <div class="card-cover">
+                        <img src="${coverPath}" alt="${video.name}" loading="lazy">
+                    </div>
+                    <div class="card-content">
+                        <div class="card-title">${video.name}</div>
+                        ${uploadDate ? `<div class="card-time">上传时间：${uploadDate}</div>` : ''}
+                    </div>
                 </div>
-                <div class="card-title">${video.title}</div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         // 绑定卡片点击跳转事件
         this.bindCardClickEvent();
     },
 
-    // ========== 模块3：检索功能 搜索事件绑定 ==========
+    // ========== 模块3：检索功能 适配name字段 ==========
     bindSearchEvent() {
         const searchInput = document.getElementById('searchInput');
         
@@ -75,34 +86,31 @@ const VideoApp = {
         });
     },
 
-    // 视频过滤逻辑
+    // 视频过滤逻辑 按name字段模糊匹配
     filterVideos(keyword) {
         const { videoList } = this.state;
         
-        // 无关键词 显示全部
         if (!keyword) {
             this.state.filteredList = videoList;
         } else {
-            // 按标题模糊匹配
             this.state.filteredList = videoList.filter(video => 
-                video.title.toLowerCase().includes(keyword)
+                video.name.toLowerCase().includes(keyword)
             );
         }
 
-        // 重新渲染
         this.renderVideoList();
     },
 
-    // ========== 模块4：卡片点击跳转 ==========
+    // ========== 模块4：卡片点击跳转 适配link字段 ==========
     bindCardClickEvent() {
         const cards = document.querySelectorAll('.video-card');
         
         cards.forEach(card => {
             card.addEventListener('click', () => {
-                const url = card.getAttribute('data-url');
-                if (url) {
-                    // 新窗口打开视频链接 不离开本站
-                    window.open(url, '_blank');
+                const videoLink = card.getAttribute('data-link');
+                if (videoLink) {
+                    // 新窗口打开B站链接 不离开本站
+                    window.open(videoLink, '_blank');
                 }
             });
         });
