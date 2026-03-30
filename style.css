@@ -206,3 +206,176 @@ body {
         padding: 10px 12px 14px;
     }
 }
+/* ========== 新增：头部操作区布局 ========== */
+.header-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 700px;
+    align-items: center;
+}
+
+/* ========== 新增：随机抽视频按钮 清新风格 ========== */
+.random-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
+    white-space: nowrap;
+}
+
+.random-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(167, 139, 250, 0.45);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+}
+
+.random-btn:active {
+    transform: translateY(0);
+}
+
+/* ========== 新增：随机视频弹窗 清新风格 ========== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.modal-content {
+    background-color: #1e1e29;
+    border-radius: 20px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid #2d2d3a;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 24px;
+    color: #71717a;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #f1f1f3;
+}
+
+.modal-header {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #a78bfa;
+    margin-bottom: 20px;
+}
+
+.modal-cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #18181b;
+    margin-bottom: 16px;
+    background-size: cover;
+    background-position: center;
+}
+
+.modal-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: #f1f1f3;
+    text-align: center;
+    margin-bottom: 24px;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-secondary, .btn-primary {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary {
+    background-color: #2d2d3a;
+    color: #f1f1f3;
+}
+
+.btn-secondary:hover {
+    background-color: #3d3d4a;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #a78bfa 0%, #818cf8 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    box-shadow: 0 6px 16px rgba(167, 139, 250, 0.4);
+    transform: translateY(-1px);
+}
+
+/* ========== 新增：响应式适配 ========== */
+@media (min-width: 768px) {
+    .header-actions {
+        flex-direction: row;
+        gap: 16px;
+        align-items: center;
+    }
+    .search-box {
+        flex: 1;
+    }
+    .random-btn {
+        flex-shrink: 0;
+    }
+}
