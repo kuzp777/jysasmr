@@ -2,9 +2,10 @@
 const VideoApp = {
     // 状态管理
     state: {
-        videoList: [],
-        filteredList: []
-    },
+    videoList: [],
+    filteredList: [],
+    currentRandomVideo: null // 新增：存储当前随机选中的视频
+},
 
     // 初始化入口
     init() {
