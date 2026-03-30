@@ -1,1 +1,45 @@
+let currentModal = null;
 
+export function openVideoModal(video) {
+    const modal = document.getElementById('videoModal');
+    const container = document.getElementById('modalVideoContainer');
+    const titleEl = document.getElementById('modalTitle');
+
+    container.innerHTML = '';
+    titleEl.textContent = video.name;
+
+    let playerHTML = '';
+
+    if (video.link.includes('youtube.com') || video.link.includes('youtu.be')) {
+        // YouTube 处理（简单 iframe）
+        const videoId = video.link.split('v=')[1] || video.link.split('/').pop();
+        playerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" 
+                            frameborder="0" allowfullscreen></iframe>`;
+    } else {
+        // 普通视频（mp4, m3u8 等）
+        playerHTML = `<video controls autoplay>
+                        <source src="${video.link}" type="video/mp4">
+                        您的浏览器不支持视频播放。
+                      </video>`;
+    }
+
+    container.innerHTML = playerHTML;
+    modal.style.display = 'block';
+
+    // 点击关闭
+    const closeBtn = modal.querySelector('.close');
+    closeBtn.onclick = () => {
+        modal.style.display = 'none';
+        container.innerHTML = ''; // 停止播放
+    };
+
+    // 点击背景关闭
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            container.innerHTML = '';
+        }
+    };
+
+    currentModal = modal;
+}
