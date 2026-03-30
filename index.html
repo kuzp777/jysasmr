@@ -3,36 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的视频库</title>
+    <title>ASMR视频收录站</title>
+    <!-- 引入样式文件 相对路径 避免GitHub Pages 404 -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>🎥 我的视频库</h1>
-        <div class="controls">
-            <input type="text" id="searchInput" placeholder="搜索视频名称..." style="padding:12px; width:320px; font-size:16px;">
-            <select id="sortSelect" style="padding:12px; font-size:16px;">
-                <option value="newest">最新优先</option>
-                <option value="name">按名称排序</option>
-            </select>
+    <!-- 页面头部 模块化 可扩展导航/分类 -->
+    <header class="page-header">
+        <div class="container">
+            <h1 class="site-title">ASMR视频收录库</h1>
+            <!-- 搜索框 检索核心功能 -->
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="输入视频名称搜索..."
+                    autocomplete="off"
+                >
+            </div>
         </div>
     </header>
 
-    <main>
-        <div id="loading" style="text-align:center; padding:80px; font-size:20px; color:#666;">加载视频中，请稍等...</div>
-        <div id="videoGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:25px; padding:30px; max-width:1400px; margin:0 auto;"></div>
-        <div id="noResults" style="display:none; text-align:center; padding:80px; font-size:18px; color:#888;">没有找到匹配的视频</div>
+    <!-- 主内容区 视频列表容器 -->
+    <main class="page-main">
+        <div class="container">
+            <!-- 加载/空状态提示 -->
+            <div id="statusTip" class="status-tip">正在加载视频数据...</div>
+            <!-- 视频卡片网格 -->
+            <div id="videoGrid" class="video-grid"></div>
+        </div>
     </main>
 
-    <!-- 视频播放模态框 -->
-    <div id="videoModal" style="display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.9);">
-        <div style="background:#fff; margin:40px auto; padding:20px; width:90%; max-width:960px; border-radius:12px; position:relative;">
-            <span id="closeModal" style="position:absolute; right:25px; top:15px; font-size:40px; cursor:pointer; color:#999;">×</span>
-            <div id="modalVideoContainer" style="width:100%; aspect-ratio:16/9; background:#000; margin-bottom:15px;"></div>
-            <h2 id="modalTitle" style="margin:15px 0; font-size:22px;"></h2>
+    <!-- 页脚 可扩展版权/统计信息 -->
+    <footer class="page-footer">
+        <div class="container">
+            <p>© 2024 ASMR视频收录站 | 基于GitHub Pages构建</p>
         </div>
-    </div>
+    </footer>
 
+    <!-- 引入JS逻辑 模块化拆分 -->
     <script src="main.js"></script>
 </body>
 </html>
