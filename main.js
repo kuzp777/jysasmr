@@ -246,7 +246,17 @@ init() {
                 }
             });
         }
-    },
+        // 随机弹窗-站内播放按钮
+const watchInSiteBtn = document.getElementById('watchInSiteBtn');
+if (watchInSiteBtn) {
+    watchInSiteBtn.addEventListener('click', () => {
+        if (this.state.currentRandomVideo) {
+            this.openVideoModal(this.state.currentRandomVideo);
+            this.hideModal(); // 关闭随机弹窗
+        }
+    });
+}},
+
 
     getRandomVideo() {
         const { videoList } = this.state;
@@ -285,6 +295,7 @@ init() {
         }
     }
 };
+
 
 // 页面加载完成 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
