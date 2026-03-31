@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JY's ASMR 视频收录站</title>
     <link rel="stylesheet" href="style.css">
-</head>
+</head>    
 <body>
     <header class="page-header">
         <div class="container">
@@ -17,6 +17,21 @@
                         id="searchInput" 
                         placeholder="输入视频名称搜索..."
                         autocomplete="off"
+                        <div class="header-actions">
+    <div class="search-box">
+        <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="输入视频名称搜索..."
+            autocomplete="off"
+        >
+    </div>
+    <!-- 【新增】充电专属筛选按钮 -->
+    <button id="premiumFilterBtn" class="filter-btn">
+        ⚡ 充电专属
+    </button>
+    <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
+</div>
                     >
                 </div>
                 <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
@@ -41,10 +56,10 @@
             <div id="modalVideoCover" class="modal-cover"></div>
             <div id="modalVideoTitle" class="modal-title"></div>
             <div class="modal-actions">
-                <button id="reRandomBtn" class="btn-secondary">🔄 再抽一个</button>
-                <button id="goWatchBtn" class="btn-primary">▶️ 去看视频</button>
-                <button id="goWatchBtn" class="btn-primary">▶️ 跳转B站</button>
-    </div>
+    <button id="reRandomBtn" class="btn-secondary">🔄 再抽一个</button>
+    <button id="watchInSiteBtn" class="btn-secondary">📺 站内播放</button>
+    <button id="goWatchBtn" class="btn-primary">▶️ 跳转B站</button>
+</div>
             </div>
         </div>
     </div>
