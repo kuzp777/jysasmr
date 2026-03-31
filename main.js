@@ -316,7 +316,8 @@ const VideoApp = {
         }
 
         modalTitle.textContent = videoItem.name;
-        const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&autoplay=0&page=1&high_quality=1`;
+        // 生成B站嵌入地址：开启弹幕 + 强制深色模式 + 高清
+const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&autoplay=0&page=1&high_quality=1&danmaku=1&theme=dark`;
         player.src = playerUrl;
 
         modal.style.display = 'flex';
