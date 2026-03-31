@@ -2,12 +2,15 @@
 const VideoApp = {
     // 状态管理
     state: {
-        videoList: [],
-        filteredList: [],
-        currentRandomVideo: null,
-        currentPage: 1,
-        pageSize: 9
-    },
+    videoList: [],
+    filteredList: [],
+    currentRandomVideo: null,
+    currentPage: 1,
+    pageSize: 9,
+    isPremiumFilterActive: false, // 【新增】充电专属筛选状态
+    latestVideoCount: 3 // 【新增】标为“最新”的视频数量（前3个）
+},
+
 
     // 工具函数：从B站链接中提取BV号
     extractBvidFromLink(link) {
@@ -17,74 +20,100 @@ const VideoApp = {
     },
 
     // 初始化入口
-    init() {
-        this.loadVideoData();
-        this.bindSearchEvent();
-        this.bindRandomEvent();
-        this.bindVideoModalEvent();
-    },
+init() {
+    this.loadVideoData();
+    this.bindSearchEvent();
+    this.bindRandomEvent();
+    this.bindVideoModalEvent();
+    this.bindFilterEvent(); // 【新增】绑定筛选事件
+},
 
-    // 模块1：加载视频数据
-    async loadVideoData() {
-        const statusTip = document.getElementById('statusTip');
-        const videoGrid = document.getElementById('videoGrid');
-        const pagination = document.getElementById('pagination');
 
-        try {
-            const response = await fetch('./videos.json');
-            if (!response.ok) throw new Error('数据加载失败');
-            
-            this.state.videoList = await response.json();
-            this.state.filteredList = this.state.videoList;
-            this.state.currentPage = 1;
+    // 模块1：加载视频数据（时间倒序）
+async loadVideoData() {
+    const statusTip = document.getElementById('statusTip');
+    const videoGrid = document.getElementById('videoGrid');
+    const pagination = document.getElementById('pagination');
 
-            statusTip.style.display = 'none';
-            pagination.style.display = 'flex';
-            this.renderVideoList();
-            this.renderPagination();
+    try {
+        const response = await fetch('./videos.json');
+        if (!response.ok) throw new Error('数据加载失败');
+        
+        this.state.videoList = await response.json();
+        
+        // 按发布时间倒序排序（最新的在最前面）
+        this.state.videoList.sort((a, b) => {
+            const timeA = new Date(a.uploadTime || a.publishTime || 0);
+            const timeB = new Date(b.uploadTime || b.publishTime || 0);
+            return timeB - timeA;
+        });
+        
+        // 初始化过滤列表
+        this.applyFilters();
+        this.state.currentPage = 1;
 
-        } catch (error) {
-            console.error('数据加载错误：', error);
-            statusTip.textContent = '视频数据加载失败，请检查videos.json文件是否存在、格式是否正确';
-            videoGrid.innerHTML = '';
-            pagination.style.display = 'none';
-        }
-    },
+        statusTip.style.display = 'none';
+        pagination.style.display = 'flex';
+        this.renderVideoList();
+        this.renderPagination();
 
-    // 模块2：渲染视频列表
-    renderVideoList() {
-        const videoGrid = document.getElementById('videoGrid');
-        const { filteredList, currentPage, pageSize } = this.state;
+    } catch (error) {
+        console.error('数据加载错误：', error);
+        statusTip.textContent = '视频数据加载失败，请检查videos.json文件是否存在、格式是否正确';
+        videoGrid.innerHTML = '';
+        pagination.style.display = 'none';
+    }
+},
 
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const currentPageData = filteredList.slice(startIndex, endIndex);
 
-        videoGrid.innerHTML = currentPageData.map(video => {
-            let coverPath = video.cover.startsWith('/') ? video.cover.slice(1) : video.cover;
-            coverPath = './' + coverPath;
-            const uploadDate = video.uploadTime ? new Date(video.uploadTime).toLocaleDateString() : '';
+    // 模块2：渲染视频列表（新增最新标签）
+renderVideoList() {
+    const videoGrid = document.getElementById('videoGrid');
+    const { filteredList, currentPage, pageSize, latestVideoCount, videoList } = this.state;
 
-            return `
-                <div class="video-card" data-link="${video.link}">
-                    <div class="card-cover">
-                        <img src="${coverPath}" alt="${video.name}" loading="lazy" onerror="this.style.backgroundColor='#18181b'">
-                    </div>
-                    <div class="card-content">
-                        <div class="card-title">${video.name}</div>
-                        ${uploadDate ? `<div class="card-time">上传时间：${uploadDate}</div>` : ''}
-                        ${video.keywords && video.keywords.length > 0 ? `
-                            <div class="card-tags">
-                                ${video.keywords.slice(0, 3).map(kw => `<span class="tag">${kw}</span>`).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentPageData = filteredList.slice(startIndex, endIndex);
+
+    videoGrid.innerHTML = currentPageData.map((video, indexInPage) => {
+        // 计算视频在原始列表中的全局索引，判断是否为最新视频
+        const globalIndex = videoList.findIndex(v => v.name === video.name && v.link === video.link);
+        const isNew = globalIndex >= 0 && globalIndex < latestVideoCount;
+        
+        let coverPath = video.cover.startsWith('/') ? video.cover.slice(1) : video.cover;
+        coverPath = './' + coverPath;
+        
+        const uploadDate = (video.uploadTime || video.publishTime) 
+            ? new Date(video.uploadTime || video.publishTime).toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }) 
+            : '';
+
+        return `
+            <div class="video-card" data-link="${video.link}">
+                <div class="card-cover">
+                    <!-- 【新增】最新视频标签 -->
+                    ${isNew ? '<div class="new-badge">✨ 最新</div>' : ''}
+                    <img src="${coverPath}" alt="${video.name}" loading="lazy" onerror="this.style.backgroundColor='#18181b'">
                 </div>
-            `;
-        }).join('');
+                <div class="card-content">
+                    <div class="card-title">${video.name}</div>
+                    ${uploadDate ? `<div class="card-time">发布时间：${uploadDate}</div>` : ''}
+                    ${video.keywords && video.keywords.length > 0 ? `
+                        <div class="card-tags">
+                            ${video.keywords.slice(0, 3).map(kw => `<span class="tag">${kw}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
 
-        this.bindCardClickEvent();
-    },
+    this.bindCardClickEvent();
+},
+
 
     // 模块3：渲染分页控件
     renderPagination() {
@@ -178,26 +207,37 @@ const VideoApp = {
         });
     },
 
-    filterVideos(keyword) {
-        const { videoList } = this.state;
-        
-        if (!keyword) {
-            this.state.filteredList = videoList;
-        } else {
-            const keywordList = keyword.toLowerCase().split(/\s+/).filter(item => item.trim() !== '');
-            this.state.filteredList = videoList.filter(video => {
-                const videoTitle = video.name.toLowerCase();
-                const videoKeywords = (video.keywords || []).map(item => item.toLowerCase()).join(' ');
-                return keywordList.every(word => {
-                    return videoTitle.includes(word) || videoKeywords.includes(word);
-                });
+    // 模块5：检索功能（和筛选联动）
+filterVideos(keyword) {
+    const { videoList, isPremiumFilterActive } = this.state;
+    
+    // 1. 先按关键词搜索
+    let result = [...videoList];
+    if (keyword) {
+        const keywordList = keyword.toLowerCase().split(/\s+/).filter(item => item.trim() !== '');
+        result = result.filter(video => {
+            const videoTitle = video.name.toLowerCase();
+            const videoKeywords = (video.keywords || []).map(item => item.toLowerCase()).join(' ');
+            return keywordList.every(word => {
+                return videoTitle.includes(word) || videoKeywords.includes(word);
             });
-        }
+        });
+    }
 
-        this.state.currentPage = 1;
-        this.renderVideoList();
-        this.renderPagination();
-    },
+    // 2. 再应用充电专属筛选
+    if (isPremiumFilterActive) {
+        result = result.filter(video => {
+            const keywords = (video.keywords || []).map(kw => kw.toLowerCase());
+            return keywords.includes('充电专属') || keywords.includes('充电');
+        });
+    }
+
+    this.state.filteredList = result;
+    this.state.currentPage = 1;
+    this.renderVideoList();
+    this.renderPagination();
+},
+
 
     // 模块6：卡片点击事件 站内弹框播放
     bindCardClickEvent() {
@@ -349,6 +389,47 @@ const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&autoplay
                 }
             }
         });
+        // ========== 【新增】模块9：筛选功能 ==========
+// 应用所有筛选条件
+applyFilters() {
+    const { videoList, isPremiumFilterActive } = this.state;
+    let result = [...videoList];
+
+    // 充电专属筛选：只显示关键词包含「充电专属」的视频
+    if (isPremiumFilterActive) {
+        result = result.filter(video => {
+            const keywords = (video.keywords || []).map(kw => kw.toLowerCase());
+            return keywords.includes('充电专属') || keywords.includes('充电');
+        });
+    }
+
+    this.state.filteredList = result;
+},
+
+// 绑定充电专属筛选按钮事件
+bindFilterEvent() {
+    const filterBtn = document.getElementById('premiumFilterBtn');
+    if (!filterBtn) return;
+
+    filterBtn.addEventListener('click', () => {
+        // 切换筛选状态
+        this.state.isPremiumFilterActive = !this.state.isPremiumFilterActive;
+        
+        // 更新按钮样式
+        if (this.state.isPremiumFilterActive) {
+            filterBtn.classList.add('active');
+        } else {
+            filterBtn.classList.remove('active');
+        }
+
+        // 重新应用筛选并渲染
+        this.applyFilters();
+        this.state.currentPage = 1;
+        this.renderVideoList();
+        this.renderPagination();
+    });
+},
+
     }
 };
 
