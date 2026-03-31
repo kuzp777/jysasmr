@@ -16,12 +16,13 @@ extractBvidFromLink(link) {
     return bvMatch ? bvMatch[0] : null;
 },
 
-    // 初始化入口
-    init() {
-        this.loadVideoData();
-        this.bindSearchEvent();
-        this.bindRandomEvent();
-    },
+   // 初始化入口
+init() {
+    this.loadVideoData();
+    this.bindSearchEvent();
+    this.bindRandomEvent();
+    this.bindVideoModalEvent(); // 新增：绑定视频弹框事件
+},,
 
     // ========== 模块1：加载视频数据 ==========
     async loadVideoData() {
