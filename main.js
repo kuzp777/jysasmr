@@ -8,6 +8,13 @@ const VideoApp = {
         currentPage: 1,
         pageSize: 9 // 每页显示9个视频，3列布局
     },
+    // 工具函数：从B站链接中提取BV号
+extractBvidFromLink(link) {
+    if (!link) return null;
+    // 匹配BV号规则：BV开头+数字/字母，共12位
+    const bvMatch = link.match(/BV([a-zA-Z0-9]{10})/i);
+    return bvMatch ? bvMatch[0] : null;
+},
 
     // 初始化入口
     init() {
