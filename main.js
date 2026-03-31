@@ -6,25 +6,25 @@ const VideoApp = {
         filteredList: [],
         currentRandomVideo: null,
         currentPage: 1,
-        pageSize: 9 // 每页显示9个视频，3列布局
+        pageSize: 9
     },
+
     // 工具函数：从B站链接中提取BV号
-extractBvidFromLink(link) {
-    if (!link) return null;
-    // 匹配BV号规则：BV开头+数字/字母，共12位
-    const bvMatch = link.match(/BV([a-zA-Z0-9]{10})/i);
-    return bvMatch ? bvMatch[0] : null;
-},
+    extractBvidFromLink(link) {
+        if (!link) return null;
+        const bvMatch = link.match(/BV([a-zA-Z0-9]{10})/i);
+        return bvMatch ? bvMatch[0] : null;
+    },
 
-   // 初始化入口
-init() {
-    this.loadVideoData();
-    this.bindSearchEvent();
-    this.bindRandomEvent();
-    this.bindVideoModalEvent(); // 新增：绑定视频弹框事件
-},,
+    // 初始化入口
+    init() {
+        this.loadVideoData();
+        this.bindSearchEvent();
+        this.bindRandomEvent();
+        this.bindVideoModalEvent();
+    },
 
-    // ========== 模块1：加载视频数据 ==========
+    // 模块1：加载视频数据
     async loadVideoData() {
         const statusTip = document.getElementById('statusTip');
         const videoGrid = document.getElementById('videoGrid');
@@ -32,11 +32,11 @@ init() {
 
         try {
             const response = await fetch('./videos.json');
-            if (!response.ok) throw new Error('数据加载失败，请检查videos.json文件是否存在');
+            if (!response.ok) throw new Error('数据加载失败');
             
             this.state.videoList = await response.json();
             this.state.filteredList = this.state.videoList;
-            this.state.currentPage = 1; // 重置页码
+            this.state.currentPage = 1;
 
             statusTip.style.display = 'none';
             pagination.style.display = 'flex';
@@ -51,12 +51,11 @@ init() {
         }
     },
 
-    // ========== 模块2：渲染视频列表（含分页截取） ==========
+    // 模块2：渲染视频列表
     renderVideoList() {
         const videoGrid = document.getElementById('videoGrid');
         const { filteredList, currentPage, pageSize } = this.state;
 
-        // 计算当前页的数据
         const startIndex = (currentPage - 1) * pageSize;
         const endIndex = startIndex + pageSize;
         const currentPageData = filteredList.slice(startIndex, endIndex);
@@ -74,6 +73,11 @@ init() {
                     <div class="card-content">
                         <div class="card-title">${video.name}</div>
                         ${uploadDate ? `<div class="card-time">上传时间：${uploadDate}</div>` : ''}
+                        ${video.keywords && video.keywords.length > 0 ? `
+                            <div class="card-tags">
+                                ${video.keywords.slice(0, 3).map(kw => `<span class="tag">${kw}</span>`).join('')}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -82,7 +86,7 @@ init() {
         this.bindCardClickEvent();
     },
 
-    // ========== 模块3：新增：渲染分页控件 ==========
+    // 模块3：渲染分页控件
     renderPagination() {
         const pagination = document.getElementById('pagination');
         const { filteredList, currentPage, pageSize } = this.state;
@@ -96,14 +100,12 @@ init() {
         pagination.style.display = 'flex';
         let paginationHTML = '';
 
-        // 上一页按钮
         paginationHTML += `
             <button class="page-btn prev-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="prev">
                 上一页
             </button>
         `;
 
-        // 页码按钮（最多显示5个页码，超出用省略号）
         const maxVisiblePages = 5;
         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
         let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -130,7 +132,6 @@ init() {
             paginationHTML += `<button class="page-btn" data-page="${totalPages}">${totalPages}</button>`;
         }
 
-        // 下一页按钮
         paginationHTML += `
             <button class="page-btn next-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="next">
                 下一页
@@ -141,7 +142,7 @@ init() {
         this.bindPaginationEvent();
     },
 
-    // ========== 模块4：新增：绑定分页点击事件 ==========
+    // 模块4：绑定分页点击事件
     bindPaginationEvent() {
         const pagination = document.getElementById('pagination');
         const { filteredList, pageSize } = this.state;
@@ -162,13 +163,12 @@ init() {
 
                 this.renderVideoList();
                 this.renderPagination();
-                // 滚动到页面顶部
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             });
         });
     },
 
-    // ========== 模块5：检索功能（搜索后重置页码） ==========
+    // 模块5：检索功能 支持标题+关键词双匹配
     bindSearchEvent() {
         const searchInput = document.getElementById('searchInput');
         
@@ -184,35 +184,44 @@ init() {
         if (!keyword) {
             this.state.filteredList = videoList;
         } else {
-            this.state.filteredList = videoList.filter(video => 
-                video.name.toLowerCase().includes(keyword)
-            );
+            const keywordList = keyword.toLowerCase().split(/\s+/).filter(item => item.trim() !== '');
+            this.state.filteredList = videoList.filter(video => {
+                const videoTitle = video.name.toLowerCase();
+                const videoKeywords = (video.keywords || []).map(item => item.toLowerCase()).join(' ');
+                return keywordList.every(word => {
+                    return videoTitle.includes(word) || videoKeywords.includes(word);
+                });
+            });
         }
 
-        this.state.currentPage = 1; // 搜索后重置到第一页
+        this.state.currentPage = 1;
         this.renderVideoList();
         this.renderPagination();
     },
 
-    // ========== 模块6：卡片点击跳转 ==========
+    // 模块6：卡片点击事件 站内弹框播放
     bindCardClickEvent() {
         const cards = document.querySelectorAll('.video-card');
         
-        cards.forEach(card => {
+        cards.forEach((card, index) => {
             card.addEventListener('click', () => {
-                const videoLink = card.getAttribute('data-link');
-                if (videoLink) {
-                    window.open(videoLink, '_blank');
+                const { filteredList, currentPage, pageSize } = this.state;
+                const videoIndex = (currentPage - 1) * pageSize + index;
+                const targetVideo = filteredList[videoIndex];
+                
+                if (targetVideo) {
+                    this.openVideoModal(targetVideo);
                 }
             });
         });
     },
 
-    // ========== 模块7：随机抽视频功能（增加容错） ==========
+    // 模块7：随机抽视频功能
     bindRandomEvent() {
         const randomBtn = document.getElementById('randomBtn');
         const modalClose = document.getElementById('modalClose');
         const reRandomBtn = document.getElementById('reRandomBtn');
+        const watchInSiteBtn = document.getElementById('watchInSiteBtn');
         const goWatchBtn = document.getElementById('goWatchBtn');
         const modalOverlay = document.getElementById('randomModal');
 
@@ -238,6 +247,15 @@ init() {
             reRandomBtn.addEventListener('click', () => this.getRandomVideo());
         }
 
+        if (watchInSiteBtn) {
+            watchInSiteBtn.addEventListener('click', () => {
+                if (this.state.currentRandomVideo) {
+                    this.openVideoModal(this.state.currentRandomVideo);
+                    this.hideModal();
+                }
+            });
+        }
+
         if (goWatchBtn) {
             goWatchBtn.addEventListener('click', () => {
                 if (this.state.currentRandomVideo) {
@@ -246,17 +264,7 @@ init() {
                 }
             });
         }
-        // 随机弹窗-站内播放按钮
-const watchInSiteBtn = document.getElementById('watchInSiteBtn');
-if (watchInSiteBtn) {
-    watchInSiteBtn.addEventListener('click', () => {
-        if (this.state.currentRandomVideo) {
-            this.openVideoModal(this.state.currentRandomVideo);
-            this.hideModal(); // 关闭随机弹窗
-        }
-    });
-}},
-
+    },
 
     getRandomVideo() {
         const { videoList } = this.state;
@@ -293,9 +301,55 @@ if (watchInSiteBtn) {
             modal.style.display = 'none';
             document.body.style.overflow = '';
         }
+    },
+
+    // 模块8：视频弹框播放功能
+    openVideoModal(videoItem) {
+        const modal = document.getElementById('videoModal');
+        const modalTitle = document.getElementById('videoModalTitle');
+        const player = document.getElementById('bilibiliPlayer');
+
+        const bvid = this.extractBvidFromLink(videoItem.link);
+        if (!bvid) {
+            alert('视频链接无效，无法提取BV号');
+            return;
+        }
+
+        modalTitle.textContent = videoItem.name;
+        const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&autoplay=0&page=1&high_quality=1`;
+        player.src = playerUrl;
+
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    },
+
+    closeVideoModal() {
+        const modal = document.getElementById('videoModal');
+        const player = document.getElementById('bilibiliPlayer');
+        
+        modal.style.display = 'none';
+        player.src = '';
+        document.body.style.overflow = '';
+    },
+
+    bindVideoModalEvent() {
+        const modal = document.getElementById('videoModal');
+        const closeBtn = document.getElementById('videoModalClose');
+
+        closeBtn.addEventListener('click', () => this.closeVideoModal());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.closeVideoModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('videoModal');
+                if (modal.style.display !== 'none') {
+                    this.closeVideoModal();
+                }
+            }
+        });
     }
 };
-
 
 // 页面加载完成 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
