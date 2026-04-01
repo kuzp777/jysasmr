@@ -6,14 +6,16 @@ const VideoApp = {
         filteredList: [],
         currentRandomVideo: null,
         currentPage: 1,
-        pageSize: 9
+        pageSize: 9,
+        isPremiumFilterActive: false,
+        latestVideoCount: 3
     },
 
     // 工具函数：从B站链接中提取BV号
     extractBvidFromLink(link) {
         if (!link) return null;
-        const bvMatch = link.match(/BV([a-zA-Z0-9]{10})/i);
-        return bvMatch ? bvMatch[0] : null;
+        const bvMatch = link.match(/(BV[a-zA-Z0-9]{10})/i);
+        return bvMatch ? bvMatch[1] : null;
     },
 
     // 初始化入口
@@ -22,9 +24,10 @@ const VideoApp = {
         this.bindSearchEvent();
         this.bindRandomEvent();
         this.bindVideoModalEvent();
+        this.bindFilterEvent();
     },
 
-    // 模块1：加载视频数据
+    // 模块1：加载视频数据（时间倒序）
     async loadVideoData() {
         const statusTip = document.getElementById('statusTip');
         const videoGrid = document.getElementById('videoGrid');
@@ -35,7 +38,16 @@ const VideoApp = {
             if (!response.ok) throw new Error('数据加载失败');
             
             this.state.videoList = await response.json();
-            this.state.filteredList = this.state.videoList;
+            
+            // 按发布时间倒序排序（最新的在最前面）
+            this.state.videoList.sort((a, b) => {
+                const timeA = new Date(a.uploadTime || a.publishTime || 0);
+                const timeB = new Date(b.uploadTime || b.publishTime || 0);
+                return timeB - timeA;
+            });
+            
+            // 初始化过滤列表
+            this.applyFilters();
             this.state.currentPage = 1;
 
             statusTip.style.display = 'none';
@@ -51,28 +63,40 @@ const VideoApp = {
         }
     },
 
-    // 模块2：渲染视频列表
+    // 模块2：渲染视频列表（新增最新标签）
     renderVideoList() {
         const videoGrid = document.getElementById('videoGrid');
-        const { filteredList, currentPage, pageSize } = this.state;
+        const { filteredList, currentPage, pageSize, latestVideoCount, videoList } = this.state;
 
         const startIndex = (currentPage - 1) * pageSize;
         const endIndex = startIndex + pageSize;
         const currentPageData = filteredList.slice(startIndex, endIndex);
 
-        videoGrid.innerHTML = currentPageData.map(video => {
+        videoGrid.innerHTML = currentPageData.map((video, indexInPage) => {
+            // 计算视频在原始列表中的全局索引，判断是否为最新视频
+            const globalIndex = videoList.findIndex(v => v.name === video.name && v.link === video.link);
+            const isNew = globalIndex >= 0 && globalIndex < latestVideoCount;
+            
             let coverPath = video.cover.startsWith('/') ? video.cover.slice(1) : video.cover;
             coverPath = './' + coverPath;
-            const uploadDate = video.uploadTime ? new Date(video.uploadTime).toLocaleDateString() : '';
+            
+            const uploadDate = (video.uploadTime || video.publishTime) 
+                ? new Date(video.uploadTime || video.publishTime).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }) 
+                : '';
 
             return `
                 <div class="video-card" data-link="${video.link}">
                     <div class="card-cover">
+                        ${isNew ? '<div class="new-badge">✨ 最新</div>' : ''}
                         <img src="${coverPath}" alt="${video.name}" loading="lazy" onerror="this.style.backgroundColor='#18181b'">
                     </div>
                     <div class="card-content">
                         <div class="card-title">${video.name}</div>
-                        ${uploadDate ? `<div class="card-time">上传时间：${uploadDate}</div>` : ''}
+                        ${uploadDate ? `<div class="card-time">发布时间：${uploadDate}</div>` : ''}
                         ${video.keywords && video.keywords.length > 0 ? `
                             <div class="card-tags">
                                 ${video.keywords.slice(0, 3).map(kw => `<span class="tag">${kw}</span>`).join('')}
@@ -168,7 +192,7 @@ const VideoApp = {
         });
     },
 
-    // 模块5：检索功能 支持标题+关键词双匹配
+    // 模块5：检索功能（和筛选联动）
     bindSearchEvent() {
         const searchInput = document.getElementById('searchInput');
         
@@ -179,13 +203,13 @@ const VideoApp = {
     },
 
     filterVideos(keyword) {
-        const { videoList } = this.state;
+        const { videoList, isPremiumFilterActive } = this.state;
         
-        if (!keyword) {
-            this.state.filteredList = videoList;
-        } else {
+        // 1. 先按关键词搜索
+        let result = [...videoList];
+        if (keyword) {
             const keywordList = keyword.toLowerCase().split(/\s+/).filter(item => item.trim() !== '');
-            this.state.filteredList = videoList.filter(video => {
+            result = result.filter(video => {
                 const videoTitle = video.name.toLowerCase();
                 const videoKeywords = (video.keywords || []).map(item => item.toLowerCase()).join(' ');
                 return keywordList.every(word => {
@@ -194,6 +218,15 @@ const VideoApp = {
             });
         }
 
+        // 2. 再应用充电专属筛选
+        if (isPremiumFilterActive) {
+            result = result.filter(video => {
+                const keywords = (video.keywords || []).map(kw => kw.toLowerCase());
+                return keywords.includes('充电专属') || keywords.includes('充电');
+            });
+        }
+
+        this.state.filteredList = result;
         this.state.currentPage = 1;
         this.renderVideoList();
         this.renderPagination();
@@ -316,9 +349,11 @@ const VideoApp = {
         }
 
         modalTitle.textContent = videoItem.name;
-        // 生成B站嵌入地址：开启弹幕 + 强制深色模式 + 高清
-const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&autoplay=0&page=1&high_quality=1&danmaku=1&theme=dark`;
-        player.src = playerUrl;
+        const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&p=1&high_quality=1&danmaku=1&theme=dark`;
+        player.src = '';
+        setTimeout(() => {
+            player.src = playerUrl;
+        }, 50);
 
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
@@ -348,6 +383,41 @@ const playerUrl = `https://player.bilibili.com/player.html?bvid=${bvid}&autoplay
                     this.closeVideoModal();
                 }
             }
+        });
+    },
+
+    // 模块9：筛选功能
+    applyFilters() {
+        const { videoList, isPremiumFilterActive } = this.state;
+        let result = [...videoList];
+
+        if (isPremiumFilterActive) {
+            result = result.filter(video => {
+                const keywords = (video.keywords || []).map(kw => kw.toLowerCase());
+                return keywords.includes('充电专属') || keywords.includes('充电');
+            });
+        }
+
+        this.state.filteredList = result;
+    },
+
+    bindFilterEvent() {
+        const filterBtn = document.getElementById('premiumFilterBtn');
+        if (!filterBtn) return;
+
+        filterBtn.addEventListener('click', () => {
+            this.state.isPremiumFilterActive = !this.state.isPremiumFilterActive;
+            
+            if (this.state.isPremiumFilterActive) {
+                filterBtn.classList.add('active');
+            } else {
+                filterBtn.classList.remove('active');
+            }
+
+            this.applyFilters();
+            this.state.currentPage = 1;
+            this.renderVideoList();
+            this.renderPagination();
         });
     }
 };
