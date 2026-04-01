@@ -7,27 +7,35 @@
     <link rel="stylesheet" href="style.css">
 </head>    
 <body>
-    <header class="page-header">
-        <div class="container">
-            <h1 class="site-title">JY's ASMR</h1>
-            <div class="header-actions">
-                <div class="search-box">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        placeholder="输入视频名称搜索..."
-                        autocomplete="off"
-                        <div class="header-actions">
-    </div>
-    <!-- 【新增】充电专属筛选按钮 -->
-    <button id="premiumFilterBtn" class="filter-btn">
-        ⚡ 充电专属
-    </button>
-               </div>
-                <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
+<header class="page-header">
+    <div class="container">
+        <h1 class="site-title">JY's ASMR</h1>
+        <div class="header-actions">
+            <div class="search-box">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="输入视频名称或标签搜索..."
+                    autocomplete="off">
+                
+                <!-- 新增：标签区域 -->
+                <div class="tag-section" id="tagSection">
+                    <div class="tag-header">
+                        <span class="tag-title">热门标签</span>
+                        <button id="tagToggleBtn" class="tag-toggle-btn">展开 ▼</button>
+                    </div>
+                    <div class="tag-cloud" id="tagCloud"></div>
+                </div>
             </div>
+
+            <!-- 原有按钮保持不变 -->
+            <button id="premiumFilterBtn" class="filter-btn">
+                ⚡ 充电专属
+            </button>
+            <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
         </div>
-    </header>
+    </div>
+</header>
 
     <main class="page-main">
         <div class="container">
