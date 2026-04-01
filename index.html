@@ -3,208 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASMR视频库 - 标签检索</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "Microsoft YaHei", sans-serif;
-        }
-        body {
-            background: #f5f5f5;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        /* 搜索 + 标签筛选区 */
-        .search-box {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .search-input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #eee;
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 15px;
-            outline: none;
-        }
-        .search-input:focus {
-            border-color: #7986cb;
-        }
-        .tag-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .tag {
-            padding: 6px 12px;
-            background: #e3f2fd;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: 0.2s;
-        }
-        .tag:hover, .tag.active {
-            background: #2196f3;
-            color: white;
-        }
-        /* 视频列表 */
-        .video-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-        .video-card {
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: 0.3s;
-        }
-        .video-card:hover {
-            transform: translateY(-5px);
-        }
-        .video-cover {
-            width: 100%;
-            height: 160px;
-            object-fit: cover;
-        }
-        .video-info {
-            padding: 12px;
-        }
-        .video-name {
-            font-size: 15px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            line-height: 1.4;
-            height: 42px;
-            overflow: hidden;
-        }
-        .video-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-bottom: 5px;
-        }
-        .video-tag {
-            font-size: 12px;
-            padding: 3px 6px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            color: #666;
-        }
-        .video-time {
-            font-size: 12px;
-            color: #999;
-        }
-        a {
-            text-decoration: none;
-            color: #333;
-        }
-    </style>
-</head>
+    <title>JY's ASMR</title>
+    <link rel="stylesheet" href="style.css">
+</head>    
 <body>
-    <div class="container">
-        <div class="search-box">
-            <!-- 搜索框 -->
-            <input type="text" class="search-input" placeholder="搜索标题 / 标签（如：助眠、口腔音、视觉触发）" id="searchInput">
-            <!-- 热门标签区 -->
-            <div class="tag-container" id="tagContainer">
-                <span class="tag" data-tag="全部">全部</span>
+    <header class="page-header">
+        <div class="container">
+            <h1 class="site-title">JY's ASMR</h1>
+            <div class="header-actions">
+                <div class="search-box">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="输入视频名称搜索..."
+                        autocomplete="off"
+                        <div class="header-actions">
+    </div>
+    <!-- 【新增】充电专属筛选按钮 -->
+    <button id="premiumFilterBtn" class="filter-btn">
+        ⚡ 充电专属
+    </button>
+               </div>
+                <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
             </div>
         </div>
+    </header>
 
-        <!-- 视频列表 -->
-        <div class="video-list" id="videoList"></div>
+    <main class="page-main">
+        <div class="container">
+            <div id="statusTip" class="status-tip">正在加载视频数据...</div>
+            <div id="videoGrid" class="video-grid"></div>
+            <!-- 新增：分页控件 -->
+            <div id="pagination" class="pagination" style="display: none;"></div>
+        </div>
+    </main>
+
+    <!-- 随机视频弹窗 -->
+    <div id="randomModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-close" id="modalClose">×</div>
+            <div class="modal-header">✨ 为你挑选的睡前视频</div>
+            <div id="modalVideoCover" class="modal-cover"></div>
+            <div id="modalVideoTitle" class="modal-title"></div>
+            <div class="modal-actions">
+    <button id="reRandomBtn" class="btn-secondary">🔄 再抽一个</button>
+    <button id="watchInSiteBtn" class="btn-secondary">📺 站内播放</button>
+    <button id="goWatchBtn" class="btn-primary">▶️ 跳转B站</button>
+</div>
+            </div>
+        </div>
     </div>
+    <!-- 新增：B站视频播放弹框 -->
+<div id="videoModal" class="video-modal-overlay" style="display: none;">
+    <div class="video-modal-content">
+        <div class="video-modal-close" id="videoModalClose">×</div>
+        <div class="video-modal-header" id="videoModalTitle">视频标题</div>
+        <!-- 视频播放器容器 -->
+        <div class="video-player-wrapper">
+           <iframe 
+    id="bilibiliPlayer" 
+    src="" 
+    frameborder="0" 
+    allow="autoplay; fullscreen"
+    scrolling="no"
+></iframe>
+        </div>
+        <div class="video-modal-tip">点击空白处关闭弹框 | 右下角可全屏播放</div>
+    </div>
+</div>
 
-    <script>
-        let allVideos = [];
-        let allTags = new Set();
+    <footer class="page-footer">
+        <div class="container">
+            <p>© JY's ASMR | 基于GitHub Pages构建</p>
+        </div>
+    </footer>
 
-        // 1. 加载视频JSON数据
-        window.onload = async function() {
-            try {
-                const res = await fetch('videos.json');
-                allVideos = await res.json();
-                
-                // 收集所有标签
-                allVideos.forEach(v => {
-                    v.keywords.forEach(tag => allTags.add(tag));
-                });
-
-                renderTags(); // 渲染标签
-                filterVideos(); // 渲染视频
-            } catch (err) {
-                console.error('加载数据失败：', err);
-            }
-        }
-
-        // 2. 渲染标签栏
-        function renderTags() {
-            const container = document.getElementById('tagContainer');
-            allTags.forEach(tag => {
-                const span = document.createElement('span');
-                span.className = 'tag';
-                span.dataset.tag = tag;
-                span.textContent = tag;
-                container.appendChild(span);
-            });
-
-            // 标签点击事件
-            document.querySelectorAll('.tag').forEach(tag => {
-                tag.addEventListener('click', () => {
-                    document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
-                    tag.classList.add('active');
-                    filterVideos(tag.dataset.tag);
-                });
-            });
-        }
-
-        // 3. 筛选 + 渲染视频
-        function filterVideos(activeTag = '全部') {
-            const searchText = document.getElementById('searchInput').value.toLowerCase();
-            const list = document.getElementById('videoList');
-            list.innerHTML = '';
-
-            allVideos.forEach(v => {
-                // 匹配条件：标签匹配 / 搜索匹配
-                const tagMatch = activeTag === '全部' || v.keywords.includes(activeTag);
-                const searchMatch = v.name.toLowerCase().includes(searchText) || 
-                                   v.keywords.some(k => k.toLowerCase().includes(searchText));
-
-                if (tagMatch && searchMatch) {
-                    const card = document.createElement('div');
-                    card.className = 'video-card';
-                    card.innerHTML = `
-                        <a href="${v.link}" target="_blank">
-                            <img src="${v.cover}" alt="${v.name}" class="video-cover">
-                            <div class="video-info">
-                                <div class="video-name">${v.name}</div>
-                                <div class="video-tags">
-                                    ${v.keywords.slice(0,4).map(k => `<span class="video-tag">${k}</span>`).join('')}
-                                </div>
-                                <div class="video-time">${v.uploadTime}</div>
-                            </div>
-                        </a>
-                    `;
-                    list.appendChild(card);
-                }
-            });
-        }
-
-        // 4. 搜索框实时监听
-        document.getElementById('searchInput').addEventListener('input', () => {
-            filterVideos();
-        });
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>
