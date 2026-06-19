@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚙️ 管理后台 - JY's ASMR</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <style>
+    :root {
+      --bg-color: #0f0f13;
+      --card-bg: #1a1a22;
+      --bg-secondary: #111827;
+      --primary-color: #6366f1;
+      --accent: #7c6ef0;
+      --accent-light: #9d92f8;
+      --accent-glow: rgba(124, 110, 240, 0.25);
+      --text-primary: #f1f1f3;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --border-color: #27272a;
+      --hover-bg: #24242d;
+      --input-bg: #18181b;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --transition: all 0.3s ease;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-color); color: var(--text-primary);
+      line-height: 1.5; min-height: 100vh;
+    }
+    a { color: var(--accent-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .admin-container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
+    .admin-header h1 { font-size: 1.5rem; background: linear-gradient(135deg, var(--accent-light), #f0c040); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .admin-header a { font-size: 0.9rem; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+    .tab-btn {
+      background: none; border: none; color: var(--text-secondary);
+      padding: 10px 20px; font-size: 0.9rem; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: var(--transition);
+    }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .form-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+    }
+    .form-card h3 { margin-bottom: 16px; font-size: 1rem; color: var(--accent-light); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.82rem; color: var(--text-secondary); }
+    .form-group input, .form-group textarea {
+      background: var(--input-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm); padding: 10px 12px;
+      font-size: 0.9rem; color: var(--text-primary); outline: none;
+      font-family: inherit; transition: var(--transition);
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-group .hint { font-size: 0.75rem; color: var(--text-muted); }
+    .form-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+
+    .btn {
+      padding: 10px 24px; border: none; border-radius: var(--radius-sm);
+      font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: var(--transition);
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-light); box-shadow: 0 0 20px var(--accent-glow); }
+    .btn-secondary { background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); }
+    .btn-secondary:hover { border-color: var(--accent); }
+    .btn-danger { background: #e04040; color: #fff; }
+    .btn-danger:hover { background: #f05050; }
+
+    .drop-zone {
+      border: 2px dashed var(--border-color); border-radius: var(--radius);
+      padding: 48px 24px; text-align: center; color: var(--text-muted);
+      transition: var(--transition); cursor: pointer; margin-bottom: 20px;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-glow); }
+    .drop-zone .drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .drop-zone p { font-size: 0.9rem; }
+    .drop-zone .sub { font-size: 0.78rem; margin-top: 8px; }
+
+    textarea#bulk-input {
+      width: 100%; min-height: 200px; background: var(--input-bg);
+      border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+      padding: 12px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.85rem; color: var(--text-primary); resize: vertical;
+    }
+    textarea#bulk-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+
+    .preview-table-wrap { overflow-x: auto; margin-top: 20px; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .preview-table th, .preview-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    .preview-table th { color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+    .preview-table td { color: var(--text-primary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-table tr:hover td { background: rgba(124,110,240,0.05); }
+    .preview-table .tag {
+      display: inline-block; font-size: 0.72rem; background: rgba(124,110,240,0.12);
+      color: var(--accent-light); padding: 1px 6px; border-radius: 8px; margin: 1px 2px;
+    }
+
+    .msg { padding: 12px 16px; border-radius: var(--radius-sm); margin: 12px 0; font-size: 0.85rem; }
+    .msg-ok { background: rgba(40,200,80,0.12); color: #50d070; border: 1px solid rgba(40,200,80,0.25); }
+    .msg-err { background: rgba(224,64,64,0.12); color: #f06060; border: 1px solid rgba(224,64,64,0.25); }
+    .msg-info { background: rgba(124,110,240,0.1); color: var(--accent-light); border: 1px solid rgba(124,110,240,0.2); }
+
+    .data-list { max-height: 400px; overflow-y: auto; }
+    .data-item {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color); transition: var(--transition);
+    }
+    .data-item:hover { background: var(--hover-bg); }
+    .data-item .thumb { width: 60px; height: 34px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--bg-secondary); }
+    .data-item .info { flex: 1; min-width: 0; }
+    .data-item .info .name { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .data-item .info .meta { font-size: 0.72rem; color: var(--text-muted); }
+    .data-item .del-btn {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-size: 1rem; padding: 4px 8px; border-radius: 4px; transition: var(--transition);
+    }
+    .data-item .del-btn:hover { color: #f05050; background: rgba(224,64,64,0.1); }
+
+    .footer { text-align: center; padding: 32px 24px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-color); margin-top: 40px; }
+
+    @media (max-width: 768px) {
+      .admin-container { padding: 16px; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1>⚙️ 管理后台</h1>
+      <a href="index.html">← 返回主站</a>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="add">➕ 添加视频</button>
+      <button class="tab-btn" data-tab="bulk">📥 批量导入</button>
+      <button class="tab-btn" data-tab="manage">📋 管理数据</button>
+      <button class="tab-btn" data-tab="export">📤 导出</button>
+    </div>
+
+    <!-- Tab 1: Add Single -->
+    <div class="tab-panel active" id="tab-add">
+      <div class="form-card">
+        <h3>添加单个视频</h3>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>视频名称 *</label>
+            <input type="text" id="add-name" placeholder="例：ASMR｜近距离视觉｜轻语安抚😴" autocomplete="off">
+            <span class="hint">支持 emoji</span>
+          </div>
+          <div class="form-group full">
+            <label>视频链接 *</label>
+            <input type="url" id="add-url" placeholder="https://www.bilibili.com/video/BV...">
+            <span class="hint">B站视频播放页链接</span>
+          </div>
+          <div class="form-group full">
+            <label>封面图片链接</label>
+            <input type="url" id="add-cover" placeholder="https://i0.hdslb.com/... 或 covers/cover-xxx.avif">
+            <span class="hint">留空则显示默认封面</span>
+          </div>
+          <div class="form-group">
+            <label>发布日期</label>
+            <input type="date" id="add-date">
+          </div>
+          <div class="form-group">
+            <label>关键词</label>
+            <input type="text" id="add-keywords" placeholder="助眠, 轻语, 耳刮, 解压">
+            <span class="hint">用逗号分隔多个关键词</span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btn-add-single">➕ 添加</button>
+          <button class="btn btn-secondary" id="btn-add-clear">清空表单</button>
+        </div>
+        <div id="add-msg"></div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Bulk Import -->
+    <div class="tab-panel" id="tab-bulk">
+      <div class="form-card">
+        <h3>📥 批量导入</h3>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+          支持 JSON 数组 或 CSV 格式。拖拽文件或粘贴文本均可。<br>
+          JSON 字段：<code>name, link, cover, uploadTime, keywords</code>
+        </p>
+
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon">📂</div>
+          <p>拖拽 .json / .csv 文件到这里</p>
+          <p class="sub">或点击选择文件</p>
+          <input type="file" id="file-input" accept=".json,.csv" style="display:none">
+        </div>
+
+        <label style="font-size:0.82rem; color:var(--text-secondary); display:block; margin-bottom:8px;">
+          或直接粘贴内容：
+        </label>
+        <textarea id="bulk-input" placeholder='JSON 格式示例：
+[
+  {
+    "name": "ASMR｜轻语安抚😴",
+    "link": "https://www.bilibili.com/video/BV...",
+    "cover": "covers/cover-xxx.avif",
+    "uploadTime": "2026-03-28 00:00:00",
+    "keywords": ["助眠", "轻语"]
+  }
+]
+
+CSV 格式示例（首行为表头）：
+name,link,cover,uploadTime,keywords
+ASMR｜轻语安抚,https://...,covers/cover-1.avif,2026-03-28,助眠|轻语'></textarea>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btn-parse">🔍 解析预览</button>
+          <button class="btn btn-secondary" id="btn-bulk-clear">清空</button>
+        </div>
+        <div id="bulk-msg"></div>
+
+        <!-- Preview -->
+        <div id="preview-area" style="display:none">
+          <h3 style="margin-top:24px;">预览（<span id="preview-count">0</span> 条）</h3>
+          <div class="preview-table-wrap">
+            <table class="preview-table">
+              <thead>
+                <tr><th>名称</th><th>链接</th><th>日期</th><th>关键词</th></tr>
+              </thead>
+              <tbody id="preview-body"></tbody>
+            </table>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="btn-import">✅ 确认导入</button>
+            <button class="btn btn-secondary" id="btn-cancel-import">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CSV Template -->
+      <div class="form-card">
+        <h3>📋 CSV 模板</h3>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
+          复制以下内容到 Excel / Google Sheets，填写后导出 CSV 粘贴到上方。
+        </p>
+        <textarea id="csv-template" readonly style="width:100%; min-height:80px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px; font-family:monospace; font-size:0.82rem; color:var(--text-primary); resize:none;">name,link,cover,uploadTime,keywords
+ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.avif,2026-03-28,助眠|轻语|解压</textarea>
+        <div class="form-actions">
+          <button class="btn btn-secondary" id="btn-copy-template">📋 复制模板</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Manage -->
+    <div class="tab-panel" id="tab-manage">
+      <div class="form-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+          <h3 style="margin:0;">📋 当前数据（<span id="data-count">0</span> 条）</h3>
+          <input type="text" id="manage-search" placeholder="搜索…" style="background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:6px 12px; font-size:0.82rem; color:var(--text-primary); outline:none;">
+        </div>
+        <div class="data-list" id="data-list"></div>
+        <div class="form-actions" style="margin-top:16px;">
+          <button class="btn btn-danger" id="btn-clear-all">🗑️ 清空全部</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Export -->
+    <div class="tab-panel" id="tab-export">
+      <div class="form-card">
+        <h3>📤 导出数据</h3>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+          导出为 JSON 文件，可直接替换仓库中的 <code>videos.json</code>。
+        </p>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btn-export-json">📥 下载 videos.json</button>
+          <button class="btn btn-secondary" id="btn-export-csv">📥 下载 CSV</button>
+          <button class="btn btn-secondary" id="btn-copy-json">📋 复制 JSON</button>
+        </div>
+        <div id="export-msg"></div>
+        <div style="margin-top:20px;">
+          <label style="font-size:0.82rem; color:var(--text-secondary); display:block; margin-bottom:8px;">JSON 预览：</label>
+          <textarea id="json-preview" readonly style="width:100%; min-height:300px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px; font-family:monospace; font-size:0.8rem; color:var(--text-primary); resize:vertical;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>🌙 JY's ASMR · 管理后台</p>
+    </footer>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    let videos = [];
+    let pendingImport = [];
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+
+    // Tabs
+    $$('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('.tab-btn').forEach(b => b.classList.remove('active'));
+        $$('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        $(`#tab-${btn.dataset.tab}`).classList.add('active');
+        if (btn.dataset.tab === 'manage') renderManageList();
+        if (btn.dataset.tab === 'export') renderExport();
+      });
+    });
+
+    // Load existing data
+    async function loadData() {
+      try {
+        const resp = await fetch('videos.json?' + Date.now());
+        const data = await resp.json();
+        videos = Array.isArray(data) ? data : [];
+      } catch { videos = []; }
+    }
+
+    function genId() { return 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6); }
+
+    function saveLocal() { localStorage.setItem('jy_admin_videos', JSON.stringify(videos)); }
+    function loadLocal() {
+      try {
+        const stored = JSON.parse(localStorage.getItem('jy_admin_videos'));
+        if (Array.isArray(stored) && stored.length > 0) return stored;
+      } catch {}
+      return null;
+    }
+
+    async function init() {
+      const local = loadLocal();
+      if (local) { videos = local; }
+      else { await loadData(); saveLocal(); }
+      bindAddForm();
+      bindBulkImport();
+      bindManage();
+      bindExport();
+    }
+
+    // Tab 1: Add
+    function bindAddForm() {
+      $('#btn-add-single').addEventListener('click', addSingle);
+      $('#btn-add-clear').addEventListener('click', () => {
+        ['#add-name','#add-url','#add-cover','#add-date','#add-keywords'].forEach(s => $(s).value = '');
+        showMsg('#add-msg', '', '');
+      });
+    }
+
+    function addSingle() {
+      const name = $('#add-name').value.trim();
+      const link = $('#add-url').value.trim();
+      if (!name) return showMsg('#add-msg', '请输入视频名称', 'err');
+      if (!link) return showMsg('#add-msg', '请输入视频链接', 'err');
+
+      const video = {
+        name,
+        link,
+        cover: $('#add-cover').value.trim(),
+        uploadTime: $('#add-date').value ? $('#add-date').value + ' 00:00:00' : new Date().toISOString(),
+        keywords: $('#add-keywords').value.split(/[,|，]/).map(s => s.trim()).filter(Boolean),
+      };
+      videos.unshift(video);
+      saveLocal();
+      showMsg('#add-msg', `✅ 已添加：${name}`, 'ok');
+      ['#add-name','#add-url','#add-cover','#add-keywords'].forEach(s => $(s).value = '');
+      $('#add-date').value = '';
+    }
+
+    // Tab 2: Bulk
+    function bindBulkImport() {
+      const dropZone = $('#drop-zone');
+      const fileInput = $('#file-input');
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+      dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+      fileInput.addEventListener('change', (e) => { if (e.target.files[0]) readFile(e.target.files[0]); });
+      $('#btn-parse').addEventListener('click', parseBulkInput);
+      $('#btn-bulk-clear').addEventListener('click', () => { $('#bulk-input').value = ''; $('#preview-area').style.display = 'none'; showMsg('#bulk-msg', '', ''); });
+      $('#btn-import').addEventListener('click', confirmImport);
+      $('#btn-cancel-import').addEventListener('click', () => { pendingImport = []; $('#preview-area').style.display = 'none'; });
+      $('#btn-copy-template').addEventListener('click', () => { navigator.clipboard.writeText($('#csv-template').value).then(() => showMsg('#bulk-msg', '📋 已复制到剪贴板', 'ok')); });
+    }
+
+    function readFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => { $('#bulk-input').value = e.target.result; showMsg('#bulk-msg', `📂 已加载文件：${file.name}`, 'info'); };
+      reader.readAsText(file);
+    }
+
+    function parseBulkInput() {
+      const raw = $('#bulk-input').value.trim();
+      if (!raw) return showMsg('#bulk-msg', '请输入或上传数据', 'err');
+      let items = [];
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) items = parsed;
+        else return showMsg('#bulk-msg', 'JSON 需为数组格式', 'err');
+      } catch { items = parseCSV(raw); }
+      if (items.length === 0) return showMsg('#bulk-msg', '未解析到有效数据', 'err');
+      pendingImport = items.map(v => ({
+        name: v.name || '未命名',
+        link: v.link || v.url || '',
+        cover: v.cover || '',
+        uploadTime: v.uploadTime || v.date || new Date().toISOString(),
+        keywords: Array.isArray(v.keywords) ? v.keywords : (typeof v.keywords === 'string' ? v.keywords.split(/[,|｜]/).map(s => s.trim()).filter(Boolean) : []),
+      })).filter(v => v.name && v.link);
+      renderPreview();
+      showMsg('#bulk-msg', `✅ 解析成功，共 ${pendingImport.length} 条`, 'ok');
+    }
+
+    function parseCSV(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) return [];
+      const headers = parseCSVLine(lines[0]);
+      const nameIdx = headers.findIndex(h => /name|名称|标题/i.test(h));
+      const linkIdx = headers.findIndex(h => /link|url|链接|地址/i.test(h));
+      const coverIdx = headers.findIndex(h => /cover|封面/i.test(h));
+      const dateIdx = headers.findIndex(h => /date|uploadtime|发布时间/i.test(h));
+      const kwIdx = headers.findIndex(h => /keyword|关键词|标签/i.test(h));
+      if (nameIdx === -1 || linkIdx === -1) return [];
+      return lines.slice(1).map(line => {
+        const cols = parseCSVLine(line);
+        return {
+          name: cols[nameIdx] || '',
+          link: cols[linkIdx] || '',
+          cover: coverIdx >= 0 ? cols[coverIdx] : '',
+          uploadTime: dateIdx >= 0 ? cols[dateIdx] : '',
+          keywords: kwIdx >= 0 ? (cols[kwIdx] || '').split(/[,|｜]/).map(s => s.trim()).filter(Boolean) : [],
+        };
+      }).filter(v => v.name && v.link);
+    }
+
+    function parseCSVLine(line) {
+      const result = []; let current = ''; let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } else inQuotes = !inQuotes; }
+        else if (ch === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+        else current += ch;
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    function renderPreview() {
+      const tbody = $('#preview-body');
+      $('#preview-count').textContent = pendingImport.length;
+      tbody.innerHTML = pendingImport.map(v => `
+        <tr>
+          <td title="${escAttr(v.name)}">${escHtml(v.name)}</td>
+          <td title="${escAttr(v.link)}">${escHtml(truncate(v.link, 40))}</td>
+          <td>${escHtml((v.uploadTime||'').slice(0,10))}</td>
+          <td>${v.keywords.map(k => `<span class="tag">${escHtml(k)}</span>`).join('')}</td>
+        </tr>
+      `).join('');
+      $('#preview-area').style.display = '';
+    }
+
+    function confirmImport() {
+      if (pendingImport.length === 0) return;
+      videos.push(...pendingImport);
+      saveLocal();
+      const count = pendingImport.length;
+      pendingImport = [];
+      $('#preview-area').style.display = 'none';
+      $('#bulk-input').value = '';
+      showMsg('#bulk-msg', `✅ 成功导入 ${count} 条视频`, 'ok');
+    }
+
+    // Tab 3: Manage
+    function bindManage() {
+      $('#btn-clear-all').addEventListener('click', () => {
+        if (confirm('确定清空全部数据？此操作不可撤销。')) { videos = []; saveLocal(); renderManageList(); }
+      });
+      $('#manage-search').addEventListener('input', renderManageList);
+    }
+
+    function renderManageList() {
+      const query = ($('#manage-search').value || '').toLowerCase();
+      const filtered = query ? videos.filter(v => (v.name + ' ' + (v.keywords||[]).join(' ')).toLowerCase().includes(query)) : videos;
+      $('#data-count').textContent = videos.length;
+      const list = $('#data-list');
+      if (filtered.length === 0) { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">暂无数据</div>'; return; }
+      list.innerHTML = filtered.map((v, i) => {
+        const coverSrc = v.cover || '';
+        return `
+          <div class="data-item" data-idx="${i}">
+            ${coverSrc ? `<img class="thumb" src="${escAttr(coverSrc)}" onerror="this.style.display='none'">` : '<div class="thumb"></div>'}
+            <div class="info">
+              <div class="name">${escHtml(v.name)}</div>
+              <div class="meta">${escHtml((v.uploadTime||'').slice(0,10))} · ${(v.keywords||[]).map(k => '#'+k).join(' ')}</div>
+            </div>
+            <button class="del-btn" data-idx="${i}" title="删除">🗑️</button>
+          </div>`;
+      }).join('');
+      list.querySelectorAll('.del-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx);
+          if (confirm(`删除「${videos[idx].name}」？`)) { videos.splice(idx, 1); saveLocal(); renderManageList(); }
+        });
+      });
+    }
+
+    // Tab 4: Export
+    function bindExport() {
+      $('#btn-export-json').addEventListener('click', () => { downloadFile('videos.json', JSON.stringify(videos, null, 2), 'application/json'); showMsg('#export-msg', '✅ 已下载 videos.json', 'ok'); });
+      $('#btn-export-csv').addEventListener('click', () => { downloadFile('videos.csv', buildCSV(), 'text/csv'); showMsg('#export-msg', '✅ 已下载 videos.csv', 'ok'); });
+      $('#btn-copy-json').addEventListener('click', () => { navigator.clipboard.writeText(JSON.stringify(videos, null, 2)).then(() => showMsg('#export-msg', '📋 已复制 JSON 到剪贴板', 'ok')); });
+    }
+
+    function renderExport() { $('#json-preview').value = JSON.stringify(videos, null, 2); }
+
+    function buildCSV() {
+      const header = 'name,link,cover,uploadTime,keywords';
+      const rows = videos.map(v => [csvEscape(v.name), csvEscape(v.link), csvEscape(v.cover), csvEscape(v.uploadTime), csvEscape((v.keywords||[]).join('|'))].join(','));
+      return [header, ...rows].join('\n');
+    }
+
+    function csvEscape(s) { if (!s) return ''; if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"'; return s; }
+    function downloadFile(filename, content, type) { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
+    function showMsg(selector, text, type) { const el = $(selector); if (!text) { el.innerHTML = ''; return; } el.innerHTML = `<div class="msg msg-${type}">${text}</div>`; }
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function truncate(s, len) { return s && s.length > len ? s.substring(0, len) + '…' : s; }
+
+    init();
+  })();
+  </script>
+</body>
+</html>
