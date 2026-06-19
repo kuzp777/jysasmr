@@ -378,6 +378,10 @@ const VideoApp = {
 
             let coverPath = video.cover || '';
             if (coverPath && !coverPath.startsWith('http') && !coverPath.startsWith('data:')) {
+                // 兼容：没有 covers/ 前缀的自动补上
+                if (!coverPath.startsWith('covers/') && !coverPath.startsWith('/')) {
+                    coverPath = 'covers/' + coverPath;
+                }
                 coverPath = coverPath.startsWith('/') ? coverPath.slice(1) : coverPath;
                 coverPath = './' + coverPath;
             }
@@ -542,6 +546,9 @@ const VideoApp = {
         if (!video) return;
         let coverPath = video.cover || '';
         if (coverPath && !coverPath.startsWith('http') && !coverPath.startsWith('data:')) {
+            if (!coverPath.startsWith('covers/') && !coverPath.startsWith('/')) {
+                coverPath = 'covers/' + coverPath;
+            }
             coverPath = coverPath.startsWith('/') ? coverPath.slice(1) : coverPath;
             coverPath = './' + coverPath;
         }

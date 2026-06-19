@@ -33,10 +33,50 @@
     a { color: var(--accent-light); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
+    /* ===== 登录遮罩 ===== */
+    .login-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-color);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-overlay.hidden { display: none; }
+    .login-box {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius); padding: 40px 32px; width: 100%; max-width: 380px;
+      text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .login-box .lock-icon { font-size: 3rem; margin-bottom: 16px; }
+    .login-box h2 { font-size: 1.3rem; margin-bottom: 8px; color: var(--accent-light); }
+    .login-box p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 24px; }
+    .login-box input {
+      width: 100%; padding: 12px 16px; background: var(--input-bg);
+      border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+      color: var(--text-primary); font-size: 15px; outline: none; margin-bottom: 12px;
+      transition: var(--transition);
+    }
+    .login-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .login-box .login-btn {
+      width: 100%; padding: 12px; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius-sm); font-size: 15px;
+      font-weight: 600; cursor: pointer; transition: var(--transition); margin-top: 4px;
+    }
+    .login-box .login-btn:hover { background: var(--accent-light); box-shadow: 0 0 20px var(--accent-glow); }
+    .login-box .login-msg { margin-top: 12px; font-size: 0.82rem; min-height: 20px; }
+    .login-box .login-msg.err { color: #f06060; }
+    .login-box .login-msg.ok { color: #50d070; }
+
+    /* ===== 管理后台 ===== */
     .admin-container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .admin-container.hidden { display: none; }
     .admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
     .admin-header h1 { font-size: 1.5rem; background: linear-gradient(135deg, var(--accent-light), #f0c040); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .admin-header a { font-size: 0.9rem; }
+    .admin-header .header-right { display: flex; gap: 12px; align-items: center; }
+    .logout-btn {
+      background: none; border: 1px solid var(--border-color); color: var(--text-secondary);
+      padding: 6px 14px; border-radius: var(--radius-sm); font-size: 0.82rem;
+      cursor: pointer; transition: var(--transition);
+    }
+    .logout-btn:hover { border-color: #f06060; color: #f06060; }
 
     .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
     .tab-btn {
@@ -140,10 +180,28 @@
   </style>
 </head>
 <body>
-  <div class="admin-container">
+
+  <!-- ===== 登录界面 ===== -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-box">
+      <div class="lock-icon">🔒</div>
+      <h2>管理后台</h2>
+      <p id="login-desc">请设置管理密码</p>
+      <input type="password" id="login-pwd" placeholder="输入密码" autocomplete="off">
+      <input type="password" id="login-pwd2" placeholder="确认密码" autocomplete="off" style="display:none">
+      <button class="login-btn" id="login-btn">进入后台</button>
+      <div class="login-msg" id="login-msg"></div>
+    </div>
+  </div>
+
+  <!-- ===== 管理后台主体 ===== -->
+  <div class="admin-container hidden" id="admin-main">
     <div class="admin-header">
       <h1>⚙️ 管理后台</h1>
-      <a href="index.html">← 返回主站</a>
+      <div class="header-right">
+        <button class="logout-btn" id="btn-change-pwd">🔑 修改密码</button>
+        <a href="index.html">← 返回主站</a>
+      </div>
     </div>
 
     <!-- Tabs -->
@@ -200,17 +258,13 @@
           支持 JSON 数组 或 CSV 格式。拖拽文件或粘贴文本均可。<br>
           JSON 字段：<code>name, link, cover, uploadTime, keywords</code>
         </p>
-
         <div class="drop-zone" id="drop-zone">
           <div class="drop-icon">📂</div>
           <p>拖拽 .json / .csv 文件到这里</p>
           <p class="sub">或点击选择文件</p>
           <input type="file" id="file-input" accept=".json,.csv" style="display:none">
         </div>
-
-        <label style="font-size:0.82rem; color:var(--text-secondary); display:block; margin-bottom:8px;">
-          或直接粘贴内容：
-        </label>
+        <label style="font-size:0.82rem; color:var(--text-secondary); display:block; margin-bottom:8px;">或直接粘贴内容：</label>
         <textarea id="bulk-input" placeholder='JSON 格式示例：
 [
   {
@@ -225,21 +279,16 @@
 CSV 格式示例（首行为表头）：
 name,link,cover,uploadTime,keywords
 ASMR｜轻语安抚,https://...,covers/cover-1.avif,2026-03-28,助眠|轻语'></textarea>
-
         <div class="form-actions">
           <button class="btn btn-primary" id="btn-parse">🔍 解析预览</button>
           <button class="btn btn-secondary" id="btn-bulk-clear">清空</button>
         </div>
         <div id="bulk-msg"></div>
-
-        <!-- Preview -->
         <div id="preview-area" style="display:none">
           <h3 style="margin-top:24px;">预览（<span id="preview-count">0</span> 条）</h3>
           <div class="preview-table-wrap">
             <table class="preview-table">
-              <thead>
-                <tr><th>名称</th><th>链接</th><th>日期</th><th>关键词</th></tr>
-              </thead>
+              <thead><tr><th>名称</th><th>链接</th><th>日期</th><th>关键词</th></tr></thead>
               <tbody id="preview-body"></tbody>
             </table>
           </div>
@@ -249,18 +298,12 @@ ASMR｜轻语安抚,https://...,covers/cover-1.avif,2026-03-28,助眠|轻语'></
           </div>
         </div>
       </div>
-
-      <!-- CSV Template -->
       <div class="form-card">
         <h3>📋 CSV 模板</h3>
-        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
-          复制以下内容到 Excel / Google Sheets，填写后导出 CSV 粘贴到上方。
-        </p>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">复制以下内容到 Excel / Google Sheets，填写后导出 CSV 粘贴到上方。</p>
         <textarea id="csv-template" readonly style="width:100%; min-height:80px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:12px; font-family:monospace; font-size:0.82rem; color:var(--text-primary); resize:none;">name,link,cover,uploadTime,keywords
 ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.avif,2026-03-28,助眠|轻语|解压</textarea>
-        <div class="form-actions">
-          <button class="btn btn-secondary" id="btn-copy-template">📋 复制模板</button>
-        </div>
+        <div class="form-actions"><button class="btn btn-secondary" id="btn-copy-template">📋 复制模板</button></div>
       </div>
     </div>
 
@@ -282,9 +325,7 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
     <div class="tab-panel" id="tab-export">
       <div class="form-card">
         <h3>📤 导出数据</h3>
-        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
-          导出为 JSON 文件，可直接替换仓库中的 <code>videos.json</code>。
-        </p>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">导出为 JSON 文件，可直接替换仓库中的 <code>videos.json</code>。</p>
         <div class="form-actions">
           <button class="btn btn-primary" id="btn-export-json">📥 下载 videos.json</button>
           <button class="btn btn-secondary" id="btn-export-csv">📥 下载 CSV</button>
@@ -298,59 +339,146 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
       </div>
     </div>
 
-    <footer class="footer">
-      <p>🌙 JY's ASMR · 管理后台</p>
-    </footer>
+    <footer class="footer"><p>🌙 JY's ASMR · 管理后台</p></footer>
   </div>
 
   <script>
   (function () {
     'use strict';
-    let videos = [];
-    let pendingImport = [];
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => document.querySelectorAll(s);
 
-    // Tabs
-    $$('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        $$('.tab-btn').forEach(b => b.classList.remove('active'));
-        $$('.tab-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        $(`#tab-${btn.dataset.tab}`).classList.add('active');
-        if (btn.dataset.tab === 'manage') renderManageList();
-        if (btn.dataset.tab === 'export') renderExport();
-      });
-    });
+    // ==================== 密码认证 ====================
+    const PWD_HASH_KEY = 'jy_admin_pwd_hash';
+    const SESSION_KEY = 'jy_admin_session';
+    let videos = [];
+    let pendingImport = [];
 
-    // Load existing data
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getStoredHash() { return localStorage.getItem(PWD_HASH_KEY); }
+
+    function isSessionValid() {
+      try {
+        const s = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+        return s && s.hash === getStoredHash() && (Date.now() - s.time < 3600000);
+      } catch { return false; }
+    }
+
+    function showAdmin() {
+      $('#login-overlay').classList.add('hidden');
+      $('#admin-main').classList.remove('hidden');
+      initAdmin();
+    }
+
+    async function handleLogin() {
+      const pwd = $('#login-pwd').value;
+      const pwd2 = $('#login-pwd2').value;
+      const msg = $('#login-msg');
+      const storedHash = getStoredHash();
+
+      if (!storedHash) {
+        // 首次设置密码
+        if (!pwd || pwd.length < 4) { msg.textContent = '密码至少4个字符'; msg.className = 'login-msg err'; return; }
+        if (pwd !== pwd2) { msg.textContent = '两次密码不一致'; msg.className = 'login-msg err'; return; }
+        const hash = await sha256(pwd);
+        localStorage.setItem(PWD_HASH_KEY, hash);
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ hash, time: Date.now() }));
+        msg.textContent = '✅ 密码设置成功！'; msg.className = 'login-msg ok';
+        setTimeout(showAdmin, 600);
+      } else {
+        // 验证密码
+        if (!pwd) { msg.textContent = '请输入密码'; msg.className = 'login-msg err'; return; }
+        const hash = await sha256(pwd);
+        if (hash === storedHash) {
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify({ hash, time: Date.now() }));
+          msg.textContent = '✅ 验证成功！'; msg.className = 'login-msg ok';
+          setTimeout(showAdmin, 400);
+        } else {
+          msg.textContent = '❌ 密码错误'; msg.className = 'login-msg err';
+          $('#login-pwd').value = '';
+        }
+      }
+    }
+
+    async function handleChangePwd() {
+      const oldPwd = prompt('请输入当前密码：');
+      if (!oldPwd) return;
+      const oldHash = await sha256(oldPwd);
+      if (oldHash !== getStoredHash()) { alert('❌ 当前密码错误'); return; }
+      const newPwd = prompt('请输入新密码（至少4个字符）：');
+      if (!newPwd || newPwd.length < 4) { alert('密码至少4个字符'); return; }
+      const newPwd2 = prompt('请再次输入新密码：');
+      if (newPwd !== newPwd2) { alert('两次密码不一致'); return; }
+      const newHash = await sha256(newPwd);
+      localStorage.setItem(PWD_HASH_KEY, newHash);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ hash: newHash, time: Date.now() }));
+      alert('✅ 密码修改成功！');
+    }
+
+    // 初始化登录界面
+    function initLogin() {
+      const storedHash = getStoredHash();
+      if (isSessionValid()) { showAdmin(); return; }
+
+      if (!storedHash) {
+        $('#login-desc').textContent = '首次使用，请设置管理密码';
+        $('#login-pwd2').style.display = '';
+      } else {
+        $('#login-desc').textContent = '请输入管理密码';
+        $('#login-pwd2').style.display = 'none';
+      }
+
+      $('#login-btn').addEventListener('click', handleLogin);
+      $('#login-pwd').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+      $('#login-pwd2').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+    }
+
+    // ==================== 管理后台功能 ====================
+    function initAdmin() {
+      // Tabs
+      $$('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          $$('.tab-btn').forEach(b => b.classList.remove('active'));
+          $$('.tab-panel').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          $(`#tab-${btn.dataset.tab}`).classList.add('active');
+          if (btn.dataset.tab === 'manage') renderManageList();
+          if (btn.dataset.tab === 'export') renderExport();
+        });
+      });
+
+      // 修改密码
+      $('#btn-change-pwd').addEventListener('click', handleChangePwd);
+
+      loadData().then(() => {
+        bindAddForm();
+        bindBulkImport();
+        bindManage();
+        bindExport();
+      });
+    }
+
     async function loadData() {
       try {
-        const resp = await fetch('videos.json?' + Date.now());
-        const data = await resp.json();
-        videos = Array.isArray(data) ? data : [];
+        const local = loadLocal();
+        if (local) { videos = local; }
+        else {
+          const resp = await fetch('videos.json?' + Date.now());
+          const data = await resp.json();
+          videos = Array.isArray(data) ? data : [];
+          saveLocal();
+        }
       } catch { videos = []; }
     }
 
-    function genId() { return 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6); }
-
     function saveLocal() { localStorage.setItem('jy_admin_videos', JSON.stringify(videos)); }
     function loadLocal() {
-      try {
-        const stored = JSON.parse(localStorage.getItem('jy_admin_videos'));
-        if (Array.isArray(stored) && stored.length > 0) return stored;
-      } catch {}
+      try { const s = JSON.parse(localStorage.getItem('jy_admin_videos')); if (Array.isArray(s) && s.length > 0) return s; } catch {}
       return null;
-    }
-
-    async function init() {
-      const local = loadLocal();
-      if (local) { videos = local; }
-      else { await loadData(); saveLocal(); }
-      bindAddForm();
-      bindBulkImport();
-      bindManage();
-      bindExport();
     }
 
     // Tab 1: Add
@@ -367,15 +495,12 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
       const link = $('#add-url').value.trim();
       if (!name) return showMsg('#add-msg', '请输入视频名称', 'err');
       if (!link) return showMsg('#add-msg', '请输入视频链接', 'err');
-
-      const video = {
-        name,
-        link,
+      videos.unshift({
+        name, link,
         cover: $('#add-cover').value.trim(),
         uploadTime: $('#add-date').value ? $('#add-date').value + ' 00:00:00' : new Date().toISOString(),
         keywords: $('#add-keywords').value.split(/[,|，]/).map(s => s.trim()).filter(Boolean),
-      };
-      videos.unshift(video);
+      });
       saveLocal();
       showMsg('#add-msg', `✅ 已添加：${name}`, 'ok');
       ['#add-name','#add-url','#add-cover','#add-keywords'].forEach(s => $(s).value = '');
@@ -384,13 +509,12 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
 
     // Tab 2: Bulk
     function bindBulkImport() {
-      const dropZone = $('#drop-zone');
-      const fileInput = $('#file-input');
-      dropZone.addEventListener('click', () => fileInput.click());
-      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-      dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
-      fileInput.addEventListener('change', (e) => { if (e.target.files[0]) readFile(e.target.files[0]); });
+      const dz = $('#drop-zone'), fi = $('#file-input');
+      dz.addEventListener('click', () => fi.click());
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+      dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+      fi.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
       $('#btn-parse').addEventListener('click', parseBulkInput);
       $('#btn-bulk-clear').addEventListener('click', () => { $('#bulk-input').value = ''; $('#preview-area').style.display = 'none'; showMsg('#bulk-msg', '', ''); });
       $('#btn-import').addEventListener('click', confirmImport);
@@ -399,25 +523,20 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
     }
 
     function readFile(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => { $('#bulk-input').value = e.target.result; showMsg('#bulk-msg', `📂 已加载文件：${file.name}`, 'info'); };
-      reader.readAsText(file);
+      const r = new FileReader();
+      r.onload = e => { $('#bulk-input').value = e.target.result; showMsg('#bulk-msg', `📂 已加载：${file.name}`, 'info'); };
+      r.readAsText(file);
     }
 
     function parseBulkInput() {
       const raw = $('#bulk-input').value.trim();
       if (!raw) return showMsg('#bulk-msg', '请输入或上传数据', 'err');
       let items = [];
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) items = parsed;
-        else return showMsg('#bulk-msg', 'JSON 需为数组格式', 'err');
-      } catch { items = parseCSV(raw); }
-      if (items.length === 0) return showMsg('#bulk-msg', '未解析到有效数据', 'err');
+      try { const p = JSON.parse(raw); if (Array.isArray(p)) items = p; else return showMsg('#bulk-msg', 'JSON 需为数组', 'err'); }
+      catch { items = parseCSV(raw); }
+      if (!items.length) return showMsg('#bulk-msg', '未解析到有效数据', 'err');
       pendingImport = items.map(v => ({
-        name: v.name || '未命名',
-        link: v.link || v.url || '',
-        cover: v.cover || '',
+        name: v.name || '未命名', link: v.link || v.url || '', cover: v.cover || '',
         uploadTime: v.uploadTime || v.date || new Date().toISOString(),
         keywords: Array.isArray(v.keywords) ? v.keywords : (typeof v.keywords === 'string' ? v.keywords.split(/[,|｜]/).map(s => s.trim()).filter(Boolean) : []),
       })).filter(v => v.name && v.link);
@@ -428,119 +547,75 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
     function parseCSV(text) {
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
       if (lines.length < 2) return [];
-      const headers = parseCSVLine(lines[0]);
-      const nameIdx = headers.findIndex(h => /name|名称|标题/i.test(h));
-      const linkIdx = headers.findIndex(h => /link|url|链接|地址/i.test(h));
-      const coverIdx = headers.findIndex(h => /cover|封面/i.test(h));
-      const dateIdx = headers.findIndex(h => /date|uploadtime|发布时间/i.test(h));
-      const kwIdx = headers.findIndex(h => /keyword|关键词|标签/i.test(h));
-      if (nameIdx === -1 || linkIdx === -1) return [];
-      return lines.slice(1).map(line => {
-        const cols = parseCSVLine(line);
-        return {
-          name: cols[nameIdx] || '',
-          link: cols[linkIdx] || '',
-          cover: coverIdx >= 0 ? cols[coverIdx] : '',
-          uploadTime: dateIdx >= 0 ? cols[dateIdx] : '',
-          keywords: kwIdx >= 0 ? (cols[kwIdx] || '').split(/[,|｜]/).map(s => s.trim()).filter(Boolean) : [],
-        };
+      const h = parseCSVLine(lines[0]);
+      const ni = h.findIndex(x => /name|名称/i.test(x)), li = h.findIndex(x => /link|url|链接/i.test(x));
+      const ci = h.findIndex(x => /cover|封面/i.test(x)), di = h.findIndex(x => /date|time|发布/i.test(x));
+      const ki = h.findIndex(x => /keyword|关键词|标签/i.test(x));
+      if (ni === -1 || li === -1) return [];
+      return lines.slice(1).map(l => {
+        const c = parseCSVLine(l);
+        return { name: c[ni]||'', link: c[li]||'', cover: ci>=0?c[ci]:'', uploadTime: di>=0?c[di]:'', keywords: ki>=0?(c[ki]||'').split(/[,|｜]/).map(s=>s.trim()).filter(Boolean):[] };
       }).filter(v => v.name && v.link);
     }
 
     function parseCSVLine(line) {
-      const result = []; let current = ''; let inQuotes = false;
+      const r = []; let cur = '', q = false;
       for (let i = 0; i < line.length; i++) {
         const ch = line[i];
-        if (ch === '"') { if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } else inQuotes = !inQuotes; }
-        else if (ch === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
-        else current += ch;
+        if (ch === '"') { if (q && line[i+1] === '"') { cur += '"'; i++; } else q = !q; }
+        else if (ch === ',' && !q) { r.push(cur.trim()); cur = ''; }
+        else cur += ch;
       }
-      result.push(current.trim());
-      return result;
+      r.push(cur.trim()); return r;
     }
 
     function renderPreview() {
-      const tbody = $('#preview-body');
       $('#preview-count').textContent = pendingImport.length;
-      tbody.innerHTML = pendingImport.map(v => `
-        <tr>
-          <td title="${escAttr(v.name)}">${escHtml(v.name)}</td>
-          <td title="${escAttr(v.link)}">${escHtml(truncate(v.link, 40))}</td>
-          <td>${escHtml((v.uploadTime||'').slice(0,10))}</td>
-          <td>${v.keywords.map(k => `<span class="tag">${escHtml(k)}</span>`).join('')}</td>
-        </tr>
-      `).join('');
+      $('#preview-body').innerHTML = pendingImport.map(v => `<tr><td title="${escA(v.name)}">${escH(v.name)}</td><td title="${escA(v.link)}">${escH(v.link.slice(0,40))}</td><td>${escH((v.uploadTime||'').slice(0,10))}</td><td>${v.keywords.map(k=>`<span class="tag">${escH(k)}</span>`).join('')}</td></tr>`).join('');
       $('#preview-area').style.display = '';
     }
 
     function confirmImport() {
-      if (pendingImport.length === 0) return;
-      videos.push(...pendingImport);
-      saveLocal();
-      const count = pendingImport.length;
-      pendingImport = [];
-      $('#preview-area').style.display = 'none';
-      $('#bulk-input').value = '';
-      showMsg('#bulk-msg', `✅ 成功导入 ${count} 条视频`, 'ok');
+      if (!pendingImport.length) return;
+      videos.push(...pendingImport); saveLocal();
+      const n = pendingImport.length; pendingImport = [];
+      $('#preview-area').style.display = 'none'; $('#bulk-input').value = '';
+      showMsg('#bulk-msg', `✅ 成功导入 ${n} 条视频`, 'ok');
     }
 
     // Tab 3: Manage
     function bindManage() {
-      $('#btn-clear-all').addEventListener('click', () => {
-        if (confirm('确定清空全部数据？此操作不可撤销。')) { videos = []; saveLocal(); renderManageList(); }
-      });
+      $('#btn-clear-all').addEventListener('click', () => { if (confirm('确定清空全部？')) { videos = []; saveLocal(); renderManageList(); } });
       $('#manage-search').addEventListener('input', renderManageList);
     }
 
     function renderManageList() {
-      const query = ($('#manage-search').value || '').toLowerCase();
-      const filtered = query ? videos.filter(v => (v.name + ' ' + (v.keywords||[]).join(' ')).toLowerCase().includes(query)) : videos;
+      const q = ($('#manage-search').value || '').toLowerCase();
+      const f = q ? videos.filter(v => (v.name + ' ' + (v.keywords||[]).join(' ')).toLowerCase().includes(q)) : videos;
       $('#data-count').textContent = videos.length;
       const list = $('#data-list');
-      if (filtered.length === 0) { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">暂无数据</div>'; return; }
-      list.innerHTML = filtered.map((v, i) => {
-        const coverSrc = v.cover || '';
-        return `
-          <div class="data-item" data-idx="${i}">
-            ${coverSrc ? `<img class="thumb" src="${escAttr(coverSrc)}" onerror="this.style.display='none'">` : '<div class="thumb"></div>'}
-            <div class="info">
-              <div class="name">${escHtml(v.name)}</div>
-              <div class="meta">${escHtml((v.uploadTime||'').slice(0,10))} · ${(v.keywords||[]).map(k => '#'+k).join(' ')}</div>
-            </div>
-            <button class="del-btn" data-idx="${i}" title="删除">🗑️</button>
-          </div>`;
-      }).join('');
-      list.querySelectorAll('.del-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = parseInt(btn.dataset.idx);
-          if (confirm(`删除「${videos[idx].name}」？`)) { videos.splice(idx, 1); saveLocal(); renderManageList(); }
-        });
-      });
+      if (!f.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">暂无数据</div>'; return; }
+      list.innerHTML = f.map((v, i) => `<div class="data-item">${v.cover ? `<img class="thumb" src="${escA(v.cover)}" onerror="this.style.display='none'">` : '<div class="thumb"></div>'}<div class="info"><div class="name">${escH(v.name)}</div><div class="meta">${escH((v.uploadTime||'').slice(0,10))} · ${(v.keywords||[]).map(k=>'#'+k).join(' ')}</div></div><button class="del-btn" data-idx="${i}" title="删除">🗑️</button></div>`).join('');
+      list.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', () => { const i = parseInt(btn.dataset.idx); if (confirm(`删除「${videos[i].name}」？`)) { videos.splice(i, 1); saveLocal(); renderManageList(); } }));
     }
 
     // Tab 4: Export
     function bindExport() {
-      $('#btn-export-json').addEventListener('click', () => { downloadFile('videos.json', JSON.stringify(videos, null, 2), 'application/json'); showMsg('#export-msg', '✅ 已下载 videos.json', 'ok'); });
-      $('#btn-export-csv').addEventListener('click', () => { downloadFile('videos.csv', buildCSV(), 'text/csv'); showMsg('#export-msg', '✅ 已下载 videos.csv', 'ok'); });
-      $('#btn-copy-json').addEventListener('click', () => { navigator.clipboard.writeText(JSON.stringify(videos, null, 2)).then(() => showMsg('#export-msg', '📋 已复制 JSON 到剪贴板', 'ok')); });
+      $('#btn-export-json').addEventListener('click', () => { dl('videos.json', JSON.stringify(videos, null, 2), 'application/json'); showMsg('#export-msg', '✅ 已下载', 'ok'); });
+      $('#btn-export-csv').addEventListener('click', () => { dl('videos.csv', buildCSV(), 'text/csv'); showMsg('#export-msg', '✅ 已下载', 'ok'); });
+      $('#btn-copy-json').addEventListener('click', () => { navigator.clipboard.writeText(JSON.stringify(videos, null, 2)).then(() => showMsg('#export-msg', '📋 已复制', 'ok')); });
     }
 
     function renderExport() { $('#json-preview').value = JSON.stringify(videos, null, 2); }
+    function buildCSV() { return ['name,link,cover,uploadTime,keywords', ...videos.map(v => [csvE(v.name),csvE(v.link),csvE(v.cover),csvE(v.uploadTime),csvE((v.keywords||[]).join('|'))].join(','))].join('\n'); }
+    function csvE(s) { if (!s) return ''; return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+    function dl(fn, c, t) { const b = new Blob([c],{type:t}), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; a.download = fn; a.click(); URL.revokeObjectURL(u); }
+    function showMsg(sel, txt, type) { const el = $(sel); el.innerHTML = txt ? `<div class="msg msg-${type}">${txt}</div>` : ''; }
+    function escH(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+    function escA(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    function buildCSV() {
-      const header = 'name,link,cover,uploadTime,keywords';
-      const rows = videos.map(v => [csvEscape(v.name), csvEscape(v.link), csvEscape(v.cover), csvEscape(v.uploadTime), csvEscape((v.keywords||[]).join('|'))].join(','));
-      return [header, ...rows].join('\n');
-    }
-
-    function csvEscape(s) { if (!s) return ''; if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"'; return s; }
-    function downloadFile(filename, content, type) { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
-    function showMsg(selector, text, type) { const el = $(selector); if (!text) { el.innerHTML = ''; return; } el.innerHTML = `<div class="msg msg-${type}">${text}</div>`; }
-    function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-    function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function truncate(s, len) { return s && s.length > len ? s.substring(0, len) + '…' : s; }
-
-    init();
+    // 启动
+    initLogin();
   })();
   </script>
 </body>
