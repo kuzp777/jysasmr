@@ -186,9 +186,8 @@
     <div class="login-box">
       <div class="lock-icon">🔒</div>
       <h2>管理后台</h2>
-      <p id="login-desc">请设置管理密码</p>
+      <p id="login-desc">请输入管理密码</p>
       <input type="password" id="login-pwd" placeholder="输入密码" autocomplete="off">
-      <input type="password" id="login-pwd2" placeholder="确认密码" autocomplete="off" style="display:none">
       <button class="login-btn" id="login-btn">进入后台</button>
       <div class="login-msg" id="login-msg"></div>
     </div>
@@ -348,23 +347,21 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => document.querySelectorAll(s);
 
-    // ==================== 密码认证 ====================
-    const PWD_HASH_KEY = 'jy_admin_pwd_hash';
+    // ==================== 密码认证（基于 site-config.json） ====================
     const SESSION_KEY = 'jy_admin_session';
     let videos = [];
     let pendingImport = [];
+    let serverPasswordHash = null; // 从 site-config.json 获取
 
     async function sha256(str) {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    function getStoredHash() { return localStorage.getItem(PWD_HASH_KEY); }
-
     function isSessionValid() {
       try {
         const s = JSON.parse(sessionStorage.getItem(SESSION_KEY));
-        return s && s.hash === getStoredHash() && (Date.now() - s.time < 3600000);
+        return s && s.hash === serverPasswordHash && (Date.now() - s.time < 3600000);
       } catch { return false; }
     }
 
@@ -376,31 +373,23 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
 
     async function handleLogin() {
       const pwd = $('#login-pwd').value;
-      const pwd2 = $('#login-pwd2').value;
       const msg = $('#login-msg');
-      const storedHash = getStoredHash();
 
-      if (!storedHash) {
-        // 首次设置密码
-        if (!pwd || pwd.length < 4) { msg.textContent = '密码至少4个字符'; msg.className = 'login-msg err'; return; }
-        if (pwd !== pwd2) { msg.textContent = '两次密码不一致'; msg.className = 'login-msg err'; return; }
-        const hash = await sha256(pwd);
-        localStorage.setItem(PWD_HASH_KEY, hash);
+      if (!serverPasswordHash) {
+        msg.textContent = '⏳ 正在加载配置，请稍后重试';
+        msg.className = 'login-msg err';
+        return;
+      }
+
+      if (!pwd) { msg.textContent = '请输入密码'; msg.className = 'login-msg err'; return; }
+      const hash = await sha256(pwd);
+      if (hash === serverPasswordHash) {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify({ hash, time: Date.now() }));
-        msg.textContent = '✅ 密码设置成功！'; msg.className = 'login-msg ok';
-        setTimeout(showAdmin, 600);
+        msg.textContent = '✅ 验证成功！'; msg.className = 'login-msg ok';
+        setTimeout(showAdmin, 400);
       } else {
-        // 验证密码
-        if (!pwd) { msg.textContent = '请输入密码'; msg.className = 'login-msg err'; return; }
-        const hash = await sha256(pwd);
-        if (hash === storedHash) {
-          sessionStorage.setItem(SESSION_KEY, JSON.stringify({ hash, time: Date.now() }));
-          msg.textContent = '✅ 验证成功！'; msg.className = 'login-msg ok';
-          setTimeout(showAdmin, 400);
-        } else {
-          msg.textContent = '❌ 密码错误'; msg.className = 'login-msg err';
-          $('#login-pwd').value = '';
-        }
+        msg.textContent = '❌ 密码错误'; msg.className = 'login-msg err';
+        $('#login-pwd').value = '';
       }
     }
 
@@ -408,33 +397,47 @@ ASMR｜轻语安抚示例,https://www.bilibili.com/video/BVxxxxx,covers/cover-1.
       const oldPwd = prompt('请输入当前密码：');
       if (!oldPwd) return;
       const oldHash = await sha256(oldPwd);
-      if (oldHash !== getStoredHash()) { alert('❌ 当前密码错误'); return; }
+      if (oldHash !== serverPasswordHash) { alert('❌ 当前密码错误'); return; }
       const newPwd = prompt('请输入新密码（至少4个字符）：');
       if (!newPwd || newPwd.length < 4) { alert('密码至少4个字符'); return; }
       const newPwd2 = prompt('请再次输入新密码：');
       if (newPwd !== newPwd2) { alert('两次密码不一致'); return; }
       const newHash = await sha256(newPwd);
-      localStorage.setItem(PWD_HASH_KEY, newHash);
+      // 显示新的 hash，让用户手动更新 site-config.json
+      const configJson = JSON.stringify({
+        adminPasswordHash: newHash,
+        passwordHint: '密码已修改，请保存此文件并推送到 GitHub'
+      }, null, 2);
+      prompt('✅ 新密码已生成！请复制以下内容替换 site-config.json 文件：', configJson);
+      // 临时生效（当前会话）
+      serverPasswordHash = newHash;
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ hash: newHash, time: Date.now() }));
-      alert('✅ 密码修改成功！');
+      alert('当前会话已生效。请记得更新 site-config.json 文件并推送到 GitHub，否则下次登录仍用旧密码。');
     }
 
     // 初始化登录界面
-    function initLogin() {
-      const storedHash = getStoredHash();
-      if (isSessionValid()) { showAdmin(); return; }
-
-      if (!storedHash) {
-        $('#login-desc').textContent = '首次使用，请设置管理密码';
-        $('#login-pwd2').style.display = '';
-      } else {
-        $('#login-desc').textContent = '请输入管理密码';
-        $('#login-pwd2').style.display = 'none';
+    async function initLogin() {
+      // 从 site-config.json 获取密码 hash
+      try {
+        const resp = await fetch('site-config.json?' + Date.now());
+        if (resp.ok) {
+          const config = await resp.json();
+          serverPasswordHash = config.adminPasswordHash;
+        }
+      } catch (e) {
+        console.error('加载 site-config.json 失败:', e);
       }
+
+      if (!serverPasswordHash) {
+        $('#login-desc').textContent = '⚠️ 无法加载密码配置，请检查 site-config.json';
+        $('#login-desc').style.color = '#f06060';
+        return;
+      }
+
+      if (isSessionValid()) { showAdmin(); return; }
 
       $('#login-btn').addEventListener('click', handleLogin);
       $('#login-pwd').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
-      $('#login-pwd2').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
     }
 
     // ==================== 管理后台功能 ====================

@@ -398,7 +398,7 @@ const VideoApp = {
                     </button>
                     <div class="card-cover">
                         ${isNew ? '<div class="new-badge">✨ 最新</div>' : ''}
-                        <img src="${this.escAttr(coverPath)}" alt="${this.escAttr(video.name)}" loading="lazy">
+                        <img src="${this.escAttr(coverPath)}" alt="${this.escAttr(video.name)}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 672 378\'><rect fill=\'%231a1a22\' width=\'672\' height=\'378\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2371717a\' font-size=\'24\'>🎬</text></svg>'">
                         <div class="play-overlay"><div class="play-icon">▶</div></div>
                     </div>
                     <div class="card-content">
