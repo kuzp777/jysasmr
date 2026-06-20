@@ -364,7 +364,7 @@ const VideoApp = {
                 <div class="empty-state">
                     <div class="empty-icon">😴</div>
                     <p>暂无视频</p>
-                    <p class="sub">${this.state.showFavOnly ? '收藏夹为空，去 <a href="admin.html">管理后台</a> 添加一些吧' : '没有匹配的视频'}</p>
+                    <p class="sub">${this.state.showFavOnly ? '收藏夹为空，去管理后台添加一些吧' : '没有匹配的视频'}</p>
                 </div>
             `;
             return;
