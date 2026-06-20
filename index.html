@@ -9,11 +9,8 @@
 <body>
 <header class="page-header">
     <div class="container">
-        <div class="header-top">
-            <h1 class="site-title">JY's ASMR</h1>
-            <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-label="菜单">☰</button>
-        </div>
-        <div class="header-actions" id="headerActions">
+        <h1 class="site-title">JY's ASMR</h1>
+        <div class="header-actions">
             <div class="search-box">
                 <input
                     type="text"
@@ -23,6 +20,10 @@
                 
                 <!-- 标签筛选区域 -->
                 <div class="tag-filter" id="tagFilter">
+                    <div class="tag-filter-header">
+                        <span class="tag-filter-title">🏷️ 关键词筛选</span>
+                        <button class="tag-filter-toggle" id="tagFilterToggle">展开 ▼</button>
+                    </div>
                     <div class="tag-primary" id="tagPrimary"></div>
                     <div class="tag-secondary-wrap" id="tagSecondaryWrap" style="display:none">
                         <div class="tag-secondary" id="tagSecondary"></div>

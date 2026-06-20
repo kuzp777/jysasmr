@@ -49,7 +49,7 @@ const VideoApp = {
         this.bindVideoModalEvent();
         this.bindSortEvent();
         this.bindDurationEvent();
-        this.bindMenuToggle();
+        this.bindTagFilterToggle();
     },
 
     // ==================== 排序 ====================
@@ -351,17 +351,21 @@ const VideoApp = {
         // 标签事件已在 renderTagCloud 中绑定
     },
 
-    // ==================== 菜单展开/收起 ====================
-    bindMenuToggle() {
-        const toggle = document.getElementById('menuToggle');
-        const actions = document.getElementById('headerActions');
-        if (toggle && actions) {
-            toggle.addEventListener('click', () => {
-                const expanded = actions.classList.toggle('expanded');
-                toggle.textContent = expanded ? '✕' : '☰';
-                toggle.setAttribute('aria-expanded', expanded);
-            });
-        }
+    // ==================== 标签筛选展开/收起 ====================
+    bindTagFilterToggle() {
+        const toggle = document.getElementById('tagFilterToggle');
+        const primary = document.getElementById('tagPrimary');
+        const secondaryWrap = document.getElementById('tagSecondaryWrap');
+        if (!toggle) return;
+        let expanded = false;
+        toggle.addEventListener('click', () => {
+            expanded = !expanded;
+            toggle.textContent = expanded ? '收起 ▲' : '展开 ▼';
+            if (primary) primary.style.display = expanded ? '' : 'none';
+            if (secondaryWrap && !expanded) secondaryWrap.style.display = 'none';
+        });
+        // 默认收起
+        if (primary) primary.style.display = 'none';
     },
 
     // ==================== 渲染视频列表 ====================
