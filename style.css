@@ -353,6 +353,32 @@ body {
     transform: scale(1.05);
 }
 
+/* 充电专属/直播回放角标 */
+.premium-badge, .live-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    z-index: 5;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.premium-badge {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.live-badge {
+    top: auto;
+    bottom: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
 /* 最新标签 */
 .new-badge {
     position: absolute;
