@@ -10,6 +10,7 @@ const VideoApp = {
         isPremiumFilterActive: false,
         latestVideoCount: 3,
         activePrimary: null,
+        durationFilter: null,
         // 新增：收藏夹
         favorites: new Set(),
         showFavOnly: false,
@@ -51,6 +52,7 @@ const VideoApp = {
         this.bindVideoModalEvent();
         this.bindSortEvent();
         this.bindFavEvent();
+        this.bindDurationEvent();
     },
 
     // ==================== 收藏夹 ====================
@@ -324,7 +326,7 @@ const VideoApp = {
     // ==================== 搜索与过滤 ====================
     filterVideos(keyword) {
         const searchText = (keyword !== undefined ? keyword : document.getElementById('searchInput').value || '').toLowerCase().trim();
-        const { videoList, isPremiumFilterActive, showFavOnly } = this.state;
+        const { videoList, isPremiumFilterActive, showFavOnly, durationFilter } = this.state;
 
         let result = [...videoList];
 
@@ -348,6 +350,15 @@ const VideoApp = {
             result = result.filter(video => {
                 const kws = (video.keywords || []).map(k => k.toLowerCase());
                 return kws.includes('充电专属') || kws.includes('充电');
+            });
+        }
+
+        // 时长筛选
+        if (durationFilter && this.DURATION_RANGES[durationFilter]) {
+            const range = this.DURATION_RANGES[durationFilter];
+            result = result.filter(video => {
+                const sec = this.parseDuration(video.duration);
+                return sec >= range.min && sec < range.max;
             });
         }
 
@@ -642,6 +653,43 @@ const VideoApp = {
                 this.closeVideoModal();
                 this.hideModal();
             }
+        });
+    },
+
+    // ==================== 时长筛选 ====================
+    DURATION_RANGES: {
+        short:  { label: '⚡ 短视频',  min: 0,    max: 300 },   // <5分钟
+        medium: { label: '☕ 中等',    min: 300,  max: 1200 },  // 5-20分钟
+        long:   { label: '🌙 长视频',  min: 1200, max: 3600 },  // 20-60分钟
+        xlong:  { label: '🕐 超长',    min: 3600, max: Infinity }, // >1小时
+    },
+
+    parseDuration(d) {
+        if (!d) return 0;
+        const parts = String(d).split(':');
+        try {
+            if (parts.length === 3) return parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
+            if (parts.length === 2) return parseInt(parts[0])*60 + parseInt(parts[1]);
+        } catch {}
+        return 0;
+    },
+
+    bindDurationEvent() {
+        const container = document.getElementById('durationFilter');
+        if (!container) return;
+        container.querySelectorAll('.dur-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dur = btn.dataset.dur;
+                if (this.state.durationFilter === dur) {
+                    this.state.durationFilter = null;
+                    btn.classList.remove('active');
+                } else {
+                    container.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+                    this.state.durationFilter = dur;
+                    btn.classList.add('active');
+                }
+                this.filterVideos();
+            });
         });
     },
 
