@@ -89,6 +89,7 @@ const VideoApp = {
         const pagination = document.getElementById('pagination');
 
         try {
+            console.log('[JY] Loading videos.json...');
             let response = null;
             const possibleUrls = [
                 './videos.json?' + Date.now(),
@@ -97,13 +98,15 @@ const VideoApp = {
 
             for (let url of possibleUrls) {
                 try {
+                    console.log('[JY] Fetching:', url);
                     response = await fetch(url);
+                    console.log('[JY] Response:', response.status, response.ok);
                     if (response.ok) break;
-                } catch (e) {}
+                } catch (e) { console.warn('[JY] Fetch failed:', url, e.message); }
             }
 
             if (!response || !response.ok) {
-                throw new Error('无法加载 videos.json');
+                throw new Error('无法加载 videos.json (status: ' + (response ? response.status : 'no response') + ')');
             }
 
             const text = await response.text();
@@ -125,15 +128,18 @@ const VideoApp = {
                 return timeB - timeA;
             });
 
+            console.log('[JY] Data loaded:', this.state.videoList.length, 'videos');
             this.applyFilters();
             this.state.currentPage = 1;
             if (statusTip) statusTip.style.display = 'none';
             if (pagination) pagination.style.display = 'flex';
 
+            console.log('[JY] Rendering...');
             this.renderVideoList();
             this.renderPagination();
             this.renderTagCloud();
             this.renderStats();
+            console.log('[JY] All rendered ✅');
 
         } catch (error) {
             console.error('数据加载错误：', error);
@@ -697,5 +703,13 @@ const VideoApp = {
 
 // 页面加载完成
 document.addEventListener('DOMContentLoaded', () => {
-    VideoApp.init();
+    console.log('[JY] DOM ready, starting init...');
+    try {
+        VideoApp.init();
+        console.log('[JY] Init OK');
+    } catch (e) {
+        console.error('[JY] Init failed:', e);
+        const tip = document.getElementById('statusTip');
+        if (tip) tip.innerHTML = '初始化失败：' + e.message;
+    }
 });
