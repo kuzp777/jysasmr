@@ -18,13 +18,12 @@
                     placeholder="输入视频名称或标签搜索..."
                     autocomplete="off">
                 
-                <!-- 标签区域 -->
-                <div class="tag-section" id="tagSection">
-                    <div class="tag-header">
-                        <span class="tag-title">🏷️ 热门标签</span>
-                        <button id="tagToggleBtn" class="tag-toggle-btn">展开 ▼</button>
+                <!-- 标签筛选区域 -->
+                <div class="tag-filter" id="tagFilter">
+                    <div class="tag-primary" id="tagPrimary"></div>
+                    <div class="tag-secondary-wrap" id="tagSecondaryWrap" style="display:none">
+                        <div class="tag-secondary" id="tagSecondary"></div>
                     </div>
-                    <div class="tag-cloud" id="tagCloud"></div>
                 </div>
             </div>
 

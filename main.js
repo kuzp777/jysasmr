@@ -9,8 +9,7 @@ const VideoApp = {
         pageSize: 9,
         isPremiumFilterActive: false,
         latestVideoCount: 3,
-        tagCloudExpanded: false,
-        displayedTagsCount: 12,
+        activePrimary: null,
         // 新增：收藏夹
         favorites: new Set(),
         showFavOnly: false,
@@ -213,71 +212,113 @@ const VideoApp = {
         }
     },
 
-    // ==================== 标签云功能 ====================
-    getAllTags() {
-        const tagMap = {};
-        this.state.videoList.forEach(video => {
-            if (video.keywords && Array.isArray(video.keywords)) {
-                video.keywords.forEach(tag => {
-                    if (tag && tag.trim()) {
-                        tagMap[tag.trim()] = (tagMap[tag.trim()] || 0) + 1;
-                    }
-                });
-            }
-        });
-        return Object.entries(tagMap).sort((a, b) => b[1] - a[1]);
+    // ==================== 标签筛选（一级/二级） ====================
+    TAG_CATEGORIES: [
+        {
+            name: '触发音',
+            icon: '🎵',
+            tags: ['口腔音', '敲击音', '刮擦', '抓挠', '摩擦音', '轻语', '耳语', '英文轻语', '翻书', '刷子音', '剪刀音', '梳音', '水声', '叮当声', '音叉', '白噪音', '棕噪音', '雨声', '呼吸声', '吹气', '泡沫音', '涂抹', '口水画', '手指灯音效', '双耳分听', '叠层声音', '刺痛', '刮耳', '采耳', '无对话']
+        },
+        {
+            name: '视觉',
+            icon: '👁️',
+            tags: ['视觉触发', '灯光', '手势', '隐形触发', '模糊/失焦', '镜头触摸']
+        },
+        {
+            name: '场景',
+            icon: '🎭',
+            tags: ['化妆', '理发', '头疗', '头皮检查', '眼部检查', '眼部清洁', '颅神经检查', '皮肤检测', '全身检查', '护肤', '按摩', '刮痧', '看牙', 'SPA', '机器人维修', '开箱', '猫咪', '法医', '裁缝', '冷脸上司', '吸血鬼']
+        },
+        {
+            name: '效果',
+            icon: '💤',
+            tags: ['助眠', '解压', '放松', '冥想', '睡眠引导', '正念', '情绪安抚', '缓解压力', '陪伴', '酥麻', '大脑放松', '疗愈', '安神', '专注力测试', '听力测试']
+        },
+        {
+            name: '音效',
+            icon: '🔊',
+            tags: ['轻柔', '黏糊糊', '双声道', '3D音效', '有BGM']
+        },
+        {
+            name: '自然',
+            icon: '🌿',
+            tags: ['雨声', '雨棍', '海浪', '火焰']
+        },
+        {
+            name: '风格',
+            icon: '🎬',
+            tags: ['沉浸式', '竖屏', '合集', 'Lofi', '微恐', '直播回放', 'AD向']
+        },
+        {
+            name: '特殊',
+            icon: '⚡',
+            tags: ['充电专属', '能量音乐', 'Emoji触发', '蓝色触发', '粉色触发']
+        }
+    ],
+
+    // 统计每个标签出现次数
+    getTagCount(tag) {
+        return this.state.videoList.filter(v => (v.keywords || []).includes(tag)).length;
     },
 
     renderTagCloud() {
-        const tagCloud = document.getElementById('tagCloud');
-        if (!tagCloud) return;
+        const primaryEl = document.getElementById('tagPrimary');
+        if (!primaryEl) return;
 
-        const allTags = this.getAllTags();
-        if (allTags.length === 0) {
-            tagCloud.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:8px 0;">暂无标签</p>';
+        // 渲染一级分类标签
+        let html = '';
+        this.TAG_CATEGORIES.forEach((cat, idx) => {
+            const isActive = this.state.activePrimary === idx;
+            html += `<span class="cat-tag ${isActive ? 'active' : ''}" data-idx="${idx}">${cat.icon} ${cat.name}</span>`;
+        });
+        primaryEl.innerHTML = html;
+
+        // 绑定一级标签点击
+        primaryEl.querySelectorAll('.cat-tag').forEach(el => {
+            el.addEventListener('click', () => {
+                const idx = parseInt(el.dataset.idx);
+                if (this.state.activePrimary === idx) {
+                    this.state.activePrimary = null;
+                } else {
+                    this.state.activePrimary = idx;
+                }
+                this.renderTagCloud();
+            });
+        });
+
+        // 渲染二级标签
+        const wrapEl = document.getElementById('tagSecondaryWrap');
+        const secondaryEl = document.getElementById('tagSecondary');
+        if (this.state.activePrimary === null) {
+            wrapEl.style.display = 'none';
             return;
         }
 
-        const displayTags = allTags.slice(0, this.state.displayedTagsCount);
-        let html = '';
-        displayTags.forEach(([tag, count]) => {
+        const cat = this.TAG_CATEGORIES[this.state.activePrimary];
+        let secHtml = '';
+        cat.tags.forEach(tag => {
+            const count = this.getTagCount(tag);
             const isActive = this.state.activeKeywords.has(tag);
-            html += `<span class="tag ${isActive ? 'active' : ''}" data-tag="${this.escAttr(tag)}">${this.escHtml(tag)} <span class="tag-count">${count}</span></span>`;
+            secHtml += `<span class="sub-tag ${isActive ? 'active' : ''}" data-tag="${this.escAttr(tag)}">${this.escHtml(tag)}${count > 0 ? ` <span class="tag-count">${count}</span>` : ''}</span>`;
         });
+        secondaryEl.innerHTML = secHtml;
+        wrapEl.style.display = '';
 
-        tagCloud.innerHTML = html;
-
-        // 点击标签进行筛选
-        tagCloud.querySelectorAll('.tag').forEach(tagEl => {
-            tagEl.addEventListener('click', () => {
-                const tagText = tagEl.dataset.tag;
-                if (this.state.activeKeywords.has(tagText)) {
-                    this.state.activeKeywords.delete(tagText);
-                    tagEl.classList.remove('active');
+        // 绑定二级标签点击
+        secondaryEl.querySelectorAll('.sub-tag').forEach(el => {
+            el.addEventListener('click', () => {
+                const tag = el.dataset.tag;
+                if (this.state.activeKeywords.has(tag)) {
+                    this.state.activeKeywords.delete(tag);
+                    el.classList.remove('active');
                 } else {
-                    this.state.activeKeywords.add(tagText);
-                    tagEl.classList.add('active');
+                    this.state.activeKeywords.add(tag);
+                    el.classList.add('active');
                 }
-                // 同步搜索框
                 document.getElementById('searchInput').value = [...this.state.activeKeywords].join(' ');
                 this.filterVideos();
             });
         });
-    },
-
-    toggleTagCloud() {
-        const tagCloud = document.getElementById('tagCloud');
-        const toggleBtn = document.getElementById('tagToggleBtn');
-
-        this.state.tagCloudExpanded = !this.state.tagCloudExpanded;
-
-        if (this.state.tagCloudExpanded) {
-            tagCloud.classList.add('expanded');
-            if (toggleBtn) toggleBtn.textContent = '收起 ▲';
-        } else {
-            tagCloud.classList.remove('expanded');
-            if (toggleBtn) toggleBtn.textContent = '展开 ▼';
-        }
     },
 
     // ==================== 搜索与过滤 ====================
@@ -331,9 +372,9 @@ const VideoApp = {
                     });
                 }
                 // 更新标签高亮
-                const tagCloud = document.getElementById('tagCloud');
-                if (tagCloud) {
-                    tagCloud.querySelectorAll('.tag').forEach(t => {
+                const secondaryEl = document.getElementById('tagSecondary');
+                if (secondaryEl) {
+                    secondaryEl.querySelectorAll('.sub-tag').forEach(t => {
                         t.classList.toggle('active', this.state.activeKeywords.has(t.dataset.tag));
                     });
                 }
@@ -343,10 +384,7 @@ const VideoApp = {
     },
 
     bindTagEvents() {
-        const toggleBtn = document.getElementById('tagToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggleTagCloud());
-        }
+        // 标签事件已在 renderTagCloud 中绑定
     },
 
     // ==================== 渲染视频列表 ====================
