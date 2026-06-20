@@ -12,9 +12,6 @@ const VideoApp = {
         latestVideoCount: 3,
         activePrimary: null,
         durationFilter: null,
-        // 新增：收藏夹
-        favorites: new Set(),
-        showFavOnly: false,
         // 新增：排序
         sortMode: 'date-desc',
         // 新增：活跃关键词筛选
@@ -44,7 +41,6 @@ const VideoApp = {
 
     // ==================== 初始化 ====================
     init() {
-        this.loadFavorites();
         this.loadVideoData();
         this.bindSearchEvent();
         this.bindTagEvents();
@@ -52,57 +48,8 @@ const VideoApp = {
         this.bindFilterEvent();
         this.bindVideoModalEvent();
         this.bindSortEvent();
-        this.bindFavEvent();
         this.bindDurationEvent();
-    },
-
-    // ==================== 收藏夹 ====================
-    loadFavorites() {
-        try {
-            const stored = JSON.parse(localStorage.getItem('jy_favs') || '[]');
-            this.state.favorites = new Set(stored);
-        } catch { this.state.favorites = new Set(); }
-        this.updateFavBadge();
-    },
-
-    saveFavorites() {
-        localStorage.setItem('jy_favs', JSON.stringify([...this.state.favorites]));
-        this.updateFavBadge();
-    },
-
-    toggleFav(id) {
-        if (this.state.favorites.has(id)) this.state.favorites.delete(id);
-        else this.state.favorites.add(id);
-        this.saveFavorites();
-        this.renderVideoList();
-    },
-
-    updateFavBadge() {
-        const n = this.state.favorites.size;
-        const favCount = document.getElementById('fav-count');
-        const btnFav = document.getElementById('btn-favorites');
-        if (favCount) {
-            if (n > 0) {
-                favCount.textContent = n;
-                favCount.style.display = '';
-            } else {
-                favCount.style.display = 'none';
-            }
-        }
-        if (btnFav) btnFav.classList.toggle('active', this.state.showFavOnly);
-    },
-
-    bindFavEvent() {
-        const btnFav = document.getElementById('btn-favorites');
-        if (btnFav) {
-            btnFav.addEventListener('click', () => {
-                this.state.showFavOnly = !this.state.showFavOnly;
-                this.applyFilters();
-                this.state.currentPage = 1;
-                this.renderVideoList();
-                this.renderPagination();
-            });
-        }
+        this.bindMenuToggle();
     },
 
     // ==================== 排序 ====================
@@ -241,12 +188,12 @@ const VideoApp = {
         {
             name: '自然',
             icon: '🌿',
-            tags: ['雨声', '雨棍', '海浪', '火焰']
+            tags: ['雨声', '雨棍', '火焰']
         },
         {
             name: '风格',
             icon: '🎬',
-            tags: ['沉浸式', '竖屏', '合集', 'Lofi', '微恐', '直播回放', 'AD向']
+            tags: ['沉浸式', '竖屏', '合集', 'Lofi', '微恐']
         },
         {
             name: '特殊',
@@ -321,14 +268,9 @@ const VideoApp = {
 
     // ==================== 搜索与过滤 ====================
     filterVideos() {
-        const { videoList, isPremiumFilterActive, showFavOnly, durationFilter, activeKeywords } = this.state;
+        const { videoList, isPremiumFilterActive, durationFilter, activeKeywords } = this.state;
 
         let result = [...videoList];
-
-        // 收藏筛选
-        if (showFavOnly) {
-            result = result.filter(video => this.state.favorites.has(this.genId(video)));
-        }
 
         // 多关键词联合筛选（AND 逻辑）
         if (activeKeywords.size > 0) {
@@ -409,6 +351,19 @@ const VideoApp = {
         // 标签事件已在 renderTagCloud 中绑定
     },
 
+    // ==================== 菜单展开/收起 ====================
+    bindMenuToggle() {
+        const toggle = document.getElementById('menuToggle');
+        const actions = document.getElementById('headerActions');
+        if (toggle && actions) {
+            toggle.addEventListener('click', () => {
+                const expanded = actions.classList.toggle('expanded');
+                toggle.textContent = expanded ? '✕' : '☰';
+                toggle.setAttribute('aria-expanded', expanded);
+            });
+        }
+    },
+
     // ==================== 渲染视频列表 ====================
     renderVideoList() {
         const videoGrid = document.getElementById('videoGrid');
@@ -423,8 +378,7 @@ const VideoApp = {
             videoGrid.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">😴</div>
-                    <p>暂无视频</p>
-                    <p class="sub">${this.state.showFavOnly ? '收藏夹为空，去管理后台添加一些吧' : '没有匹配的视频'}</p>
+                    <p>没有匹配的视频</p>
                 </div>
             `;
             return;
@@ -433,9 +387,6 @@ const VideoApp = {
         videoGrid.innerHTML = currentPageData.map((video) => {
             const globalIndex = videoList.findIndex(v => v.name === video.name && v.link === video.link);
             const isNew = globalIndex >= 0 && globalIndex < latestVideoCount;
-            const videoId = this.genId(video);
-            const isFav = this.state.favorites.has(videoId);
-
             let coverPath = video.cover || '';
             if (coverPath && !coverPath.startsWith('http') && !coverPath.startsWith('data:')) {
                 // 兼容：没有 covers/ 前缀的自动补上
@@ -453,11 +404,10 @@ const VideoApp = {
 
             return `
                 <div class="video-card" data-link="${this.escAttr(video.link)}" data-id="${this.escAttr(videoId)}">
-                    <button class="card-fav ${isFav ? 'is-fav' : ''}" data-id="${this.escAttr(videoId)}" title="收藏">
-                        ${isFav ? '⭐' : '☆'}
-                    </button>
                     <div class="card-cover">
                         ${isNew ? '<div class="new-badge">✨ 最新</div>' : ''}
+                        ${video.isPremium ? '<div class="premium-badge">⚡ 充电专属</div>' : ''}
+                        ${video.isLiveReplay ? '<div class="live-badge">📺 直播回放</div>' : ''}
                         <img src="${this.escAttr(coverPath)}" alt="${this.escAttr(video.name)}" loading="lazy" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 672 378\'><rect fill=\'%231a1a22\' width=\'672\' height=\'378\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2371717a\' font-size=\'24\'>🎬</text></svg>'">
                         <div class="play-overlay"><div class="play-icon">▶</div></div>
                     </div>
@@ -544,15 +494,6 @@ const VideoApp = {
     bindCardClickEvent() {
         const cards = document.querySelectorAll('.video-card');
         cards.forEach((card) => {
-            // 收藏按钮
-            const favBtn = card.querySelector('.card-fav');
-            if (favBtn) {
-                favBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.toggleFav(favBtn.dataset.id);
-                });
-            }
-
             // 卡片关键词点击 → 添加到筛选
             card.querySelectorAll('.clickable-tag').forEach(tagEl => {
                 tagEl.addEventListener('click', (e) => {
@@ -570,7 +511,7 @@ const VideoApp = {
 
             // 卡片点击 → 站内播放
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.card-fav') || e.target.closest('.clickable-tag')) return;
+                if (e.target.closest('.clickable-tag')) return;
                 const videoId = card.dataset.id;
                 const video = this.state.videoList.find(v => this.genId(v) === videoId);
                 if (video) this.openVideoModal(video);

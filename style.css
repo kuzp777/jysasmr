@@ -202,23 +202,7 @@ body {
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
-.fav-btn .badge {
-    background: var(--gold);
-    color: #000;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 10px;
-    margin-left: 4px;
-}
 
-.admin-btn {
-    opacity: 0.7;
-}
-
-.admin-btn:hover {
-    opacity: 1;
-}
 
 /* ========== 统计栏 ========== */
 .stats-bar {
@@ -270,29 +254,7 @@ body {
     border-color: var(--primary-color);
 }
 
-/* 收藏按钮 */
-.card-fav {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 5;
-    background: rgba(0, 0, 0, 0.5);
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 16px;
-    transition: var(--transition);
-    opacity: 0;
-}
 
-.video-card:hover .card-fav { opacity: 1; }
-.card-fav.is-fav { opacity: 1; }
-.card-fav:hover { transform: scale(1.15); }
 
 .card-cover {
     width: 100%;
@@ -758,6 +720,10 @@ body {
     .page-header .container {
         flex-direction: row;
         justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    .header-top {
+        width: auto;
     }
     .header-actions {
         flex-direction: row;
@@ -770,6 +736,22 @@ body {
 }
 
 @media (max-width: 767px) {
+    .menu-toggle {
+        display: block;
+    }
+
+    .header-actions {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .header-actions.expanded {
+        display: flex;
+    }
+
     .video-grid {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 16px;
@@ -777,15 +759,12 @@ body {
     .card-title { font-size: 14px; }
     .card-content { padding: 10px 12px 14px; }
     .page-btn { padding: 6px 10px; font-size: 13px; }
-    .header-actions {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    .filter-btn, .random-btn, .sort-group {
-        flex: 1;
-        min-width: 120px;
+    .filter-btn, .random-btn {
+        width: 100%;
         text-align: center;
     }
+    .sort-group { width: 100%; }
+    .sort-group select { width: 100%; }
     .duration-filter {
         width: 100%;
         justify-content: center;
@@ -797,8 +776,8 @@ body {
         padding: 7px 10px;
         font-size: 12px;
     }
-    .sort-group select {
-        width: 100%;
+    .tag-primary {
+        justify-content: center;
     }
     .video-modal-content { padding: 12px; }
     .video-modal-header { font-size: 15px; margin-bottom: 12px; }

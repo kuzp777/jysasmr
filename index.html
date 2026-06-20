@@ -9,8 +9,11 @@
 <body>
 <header class="page-header">
     <div class="container">
-        <h1 class="site-title">JY's ASMR</h1>
-        <div class="header-actions">
+        <div class="header-top">
+            <h1 class="site-title">JY's ASMR</h1>
+            <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-label="菜单">☰</button>
+        </div>
+        <div class="header-actions" id="headerActions">
             <div class="search-box">
                 <input
                     type="text"
@@ -47,14 +50,7 @@
                 <button class="dur-btn" data-dur="xlong">🕐 超长</button>
             </div>
 
-            <!-- 收藏夹按钮 -->
-            <button id="btn-favorites" class="filter-btn fav-btn" title="收藏夹">
-                ⭐ 收藏 <span class="badge" id="fav-count" style="display:none">0</span>
-            </button>
-
             <button id="randomBtn" class="random-btn">🎲 睡前抽一个</button>
-
-
         </div>
     </div>
 </header>
