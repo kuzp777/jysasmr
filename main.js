@@ -89,7 +89,6 @@ const VideoApp = {
         const pagination = document.getElementById('pagination');
 
         try {
-            console.log('[JY] Loading videos.json...');
             let response = null;
             const possibleUrls = [
                 './videos.json?' + Date.now(),
@@ -98,11 +97,9 @@ const VideoApp = {
 
             for (let url of possibleUrls) {
                 try {
-                    console.log('[JY] Fetching:', url);
                     response = await fetch(url);
-                    console.log('[JY] Response:', response.status, response.ok);
                     if (response.ok) break;
-                } catch (e) { console.warn('[JY] Fetch failed:', url, e.message); }
+                } catch (e) {}
             }
 
             if (!response || !response.ok) {
@@ -128,18 +125,15 @@ const VideoApp = {
                 return timeB - timeA;
             });
 
-            console.log('[JY] Data loaded:', this.state.videoList.length, 'videos');
             this.applyFilters();
             this.state.currentPage = 1;
             if (statusTip) statusTip.style.display = 'none';
             if (pagination) pagination.style.display = 'flex';
 
-            console.log('[JY] Rendering...');
             this.renderVideoList();
             this.renderPagination();
             this.renderTagCloud();
             this.renderStats();
-            console.log('[JY] All rendered ✅');
 
         } catch (error) {
             console.error('数据加载错误：', error);
@@ -393,6 +387,7 @@ const VideoApp = {
         videoGrid.innerHTML = currentPageData.map((video) => {
             const globalIndex = videoList.findIndex(v => v.name === video.name && v.link === video.link);
             const isNew = globalIndex >= 0 && globalIndex < latestVideoCount;
+            const videoId = this.genId(video, globalIndex);
             let coverPath = video.cover || '';
             if (coverPath && !coverPath.startsWith('http') && !coverPath.startsWith('data:')) {
                 // 兼容：没有 covers/ 前缀的自动补上
@@ -703,13 +698,5 @@ const VideoApp = {
 
 // 页面加载完成
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[JY] DOM ready, starting init...');
-    try {
-        VideoApp.init();
-        console.log('[JY] Init OK');
-    } catch (e) {
-        console.error('[JY] Init failed:', e);
-        const tip = document.getElementById('statusTip');
-        if (tip) tip.innerHTML = '初始化失败：' + e.message;
-    }
+    VideoApp.init();
 });
