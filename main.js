@@ -8,6 +8,7 @@ const VideoApp = {
         currentPage: 1,
         pageSize: 9,
         isPremiumFilterActive: false,
+        isLiveReplayFilterActive: false,
         latestVideoCount: 3,
         activePrimary: null,
         durationFilter: null,
@@ -126,10 +127,6 @@ const VideoApp = {
                     return new Date(b.uploadTime || b.publishTime || 0) - new Date(a.uploadTime || a.publishTime || 0);
                 case 'date-asc':
                     return new Date(a.uploadTime || a.publishTime || 0) - new Date(b.uploadTime || b.publishTime || 0);
-                case 'name-asc':
-                    return a.name.localeCompare(b.name, 'zh');
-                case 'name-desc':
-                    return b.name.localeCompare(a.name, 'zh');
                 case 'random':
                     return Math.random() - 0.5;
                 default:
@@ -312,21 +309,19 @@ const VideoApp = {
                 const tag = el.dataset.tag;
                 if (this.state.activeKeywords.has(tag)) {
                     this.state.activeKeywords.delete(tag);
-                    el.classList.remove('active');
                 } else {
                     this.state.activeKeywords.add(tag);
-                    el.classList.add('active');
                 }
-                document.getElementById('searchInput').value = [...this.state.activeKeywords].join(' ');
+                this.syncSearchInput();
+                this.syncTagHighlight();
                 this.filterVideos();
             });
         });
     },
 
     // ==================== 搜索与过滤 ====================
-    filterVideos(keyword) {
-        const searchText = (keyword !== undefined ? keyword : document.getElementById('searchInput').value || '').toLowerCase().trim();
-        const { videoList, isPremiumFilterActive, showFavOnly, durationFilter } = this.state;
+    filterVideos() {
+        const { videoList, isPremiumFilterActive, showFavOnly, durationFilter, activeKeywords } = this.state;
 
         let result = [...videoList];
 
@@ -335,22 +330,26 @@ const VideoApp = {
             result = result.filter(video => this.state.favorites.has(this.genId(video)));
         }
 
-        // 搜索筛选
-        if (searchText) {
-            const keywordList = searchText.split(/\s+/).filter(w => w.trim() !== '');
+        // 多关键词联合筛选（AND 逻辑）
+        if (activeKeywords.size > 0) {
+            const keywordList = [...activeKeywords].map(k => k.toLowerCase());
             result = result.filter(video => {
                 const title = video.name.toLowerCase();
-                const kws = (video.keywords || []).map(k => k.toLowerCase()).join(' ');
-                return keywordList.every(word => title.includes(word) || kws.includes(word));
+                const kws = (video.keywords || []).map(k => k.toLowerCase());
+                return keywordList.every(word =>
+                    title.includes(word) || kws.some(kw => kw.includes(word))
+                );
             });
         }
 
         // 充电专属筛选
         if (isPremiumFilterActive) {
-            result = result.filter(video => {
-                const kws = (video.keywords || []).map(k => k.toLowerCase());
-                return kws.includes('充电专属') || kws.includes('充电');
-            });
+            result = result.filter(video => video.isPremium);
+        }
+
+        // 直播回放筛选
+        if (this.state.isLiveReplayFilterActive) {
+            result = result.filter(video => video.isLiveReplay);
         }
 
         // 时长筛选
@@ -374,7 +373,7 @@ const VideoApp = {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('input', () => {
-                // 同步活跃关键词
+                // 从搜索框同步到 activeKeywords
                 const val = searchInput.value.trim();
                 this.state.activeKeywords.clear();
                 if (val) {
@@ -382,15 +381,27 @@ const VideoApp = {
                         if (w) this.state.activeKeywords.add(w);
                     });
                 }
-                // 更新标签高亮
-                const secondaryEl = document.getElementById('tagSecondary');
-                if (secondaryEl) {
-                    secondaryEl.querySelectorAll('.sub-tag').forEach(t => {
-                        t.classList.toggle('active', this.state.activeKeywords.has(t.dataset.tag));
-                    });
-                }
+                this.syncTagHighlight();
                 this.filterVideos();
             });
+        }
+    },
+
+    // 同步标签高亮状态
+    syncTagHighlight() {
+        const secondaryEl = document.getElementById('tagSecondary');
+        if (secondaryEl) {
+            secondaryEl.querySelectorAll('.sub-tag').forEach(t => {
+                t.classList.toggle('active', this.state.activeKeywords.has(t.dataset.tag));
+            });
+        }
+    },
+
+    // 更新搜索框显示
+    syncSearchInput() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = [...this.state.activeKeywords].join(' ');
         }
     },
 
@@ -455,7 +466,7 @@ const VideoApp = {
                         ${uploadDate ? `<div class="card-time">📅 ${this.escHtml(uploadDate)}</div>` : ''}
                         ${video.keywords && video.keywords.length > 0 ? `
                             <div class="card-tags">
-                                ${video.keywords.slice(0, 3).map(kw => `<span class="tag">${this.escHtml(kw)}</span>`).join('')}
+                                ${video.keywords.slice(0, 5).map(kw => `<span class="tag clickable-tag" data-kw="${this.escAttr(kw)}">${this.escHtml(kw)}</span>`).join('')}
                             </div>
                         ` : ''}
                     </div>
@@ -542,9 +553,24 @@ const VideoApp = {
                 });
             }
 
+            // 卡片关键词点击 → 添加到筛选
+            card.querySelectorAll('.clickable-tag').forEach(tagEl => {
+                tagEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const kw = tagEl.dataset.kw;
+                    if (kw) {
+                        this.state.activeKeywords.add(kw);
+                        this.syncSearchInput();
+                        this.syncTagHighlight();
+                        this.filterVideos();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                });
+            });
+
             // 卡片点击 → 站内播放
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.card-fav')) return;
+                if (e.target.closest('.card-fav') || e.target.closest('.clickable-tag')) return;
                 const videoId = card.dataset.id;
                 const video = this.state.videoList.find(v => this.genId(v) === videoId);
                 if (video) this.openVideoModal(video);
@@ -707,14 +733,24 @@ const VideoApp = {
     },
 
     bindFilterEvent() {
-        const filterBtn = document.getElementById('premiumFilterBtn');
-        if (!filterBtn) return;
-        filterBtn.addEventListener('click', () => {
-            this.state.isPremiumFilterActive = !this.state.isPremiumFilterActive;
-            filterBtn.textContent = this.state.isPremiumFilterActive ? '⚡ 全部视频' : '⚡ 充电专属';
-            filterBtn.classList.toggle('active', this.state.isPremiumFilterActive);
-            this.filterVideos();
-        });
+        // 充电专属
+        const premiumBtn = document.getElementById('premiumFilterBtn');
+        if (premiumBtn) {
+            premiumBtn.addEventListener('click', () => {
+                this.state.isPremiumFilterActive = !this.state.isPremiumFilterActive;
+                premiumBtn.classList.toggle('active', this.state.isPremiumFilterActive);
+                this.filterVideos();
+            });
+        }
+        // 直播回放
+        const liveBtn = document.getElementById('liveReplayBtn');
+        if (liveBtn) {
+            liveBtn.addEventListener('click', () => {
+                this.state.isLiveReplayFilterActive = !this.state.isLiveReplayFilterActive;
+                liveBtn.classList.toggle('active', this.state.isLiveReplayFilterActive);
+                this.filterVideos();
+            });
+        }
     }
 };
 

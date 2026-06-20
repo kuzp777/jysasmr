@@ -380,6 +380,17 @@ body {
     white-space: nowrap;
 }
 
+.card-tags .clickable-tag {
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.card-tags .clickable-tag:hover {
+    background: var(--accent);
+    color: white;
+    transform: scale(1.05);
+}
+
 /* 最新标签 */
 .new-badge {
     position: absolute;
