@@ -39,7 +39,33 @@
 
     --ease: cubic-bezier(.2,.8,.2,1);
     --t: .18s var(--ease);
+
+    /* 小窗播放器（暗色默认） */
+    --mini-bg: #0d0f14;
+    --mini-chrome-1: #1c2028;
+    --mini-chrome-2: #14181f;
+    --mini-border: rgba(255, 255, 255, .08);
+    --mini-text: rgba(255, 255, 255, .55);
+    --mini-icon: rgba(255, 255, 255, .45);
+    --mini-icon-hover: rgba(255, 255, 255, .9);
+    --mini-icon-bg: rgba(255, 255, 255, .08);
+    --mini-dot: rgba(255, 255, 255, .18);
+    --mini-shadow-1: rgba(0, 0, 0, .4);
+    --mini-shadow-2: rgba(0, 0, 0, .55);
 }
+    /* 小窗播放器（暗色默认） */
+    --mini-bg: #0d0f14;
+    --mini-chrome-1: #1c2028;
+    --mini-chrome-2: #14181f;
+    --mini-border: rgba(255, 255, 255, .08);
+    --mini-text: rgba(255, 255, 255, .55);
+    --mini-icon: rgba(255, 255, 255, .45);
+    --mini-icon-hover: rgba(255, 255, 255, .9);
+    --mini-icon-bg: rgba(255, 255, 255, .08);
+    --mini-dot: rgba(255, 255, 255, .18);
+    --mini-shadow-1: rgba(0, 0, 0, .4);
+    --mini-shadow-2: rgba(0, 0, 0, .55);
+
 
 [data-theme="light"] {
     --bg: #f6f7fb;
@@ -60,7 +86,21 @@
     --shadow-1: 0 1px 2px rgba(16,24,40,.06);
     --shadow-2: 0 8px 24px rgba(16,24,40,.1);
     --shadow-3: 0 16px 48px rgba(16,24,40,.14);
+
+    /* 小窗播放器（浅色） */
+    --mini-bg: #ffffff;
+    --mini-chrome-1: #f4f5f8;
+    --mini-chrome-2: #e9ebf1;
+    --mini-border: rgba(16, 24, 40, .12);
+    --mini-text: rgba(16, 24, 40, .55);
+    --mini-icon: rgba(16, 24, 40, .45);
+    --mini-icon-hover: rgba(16, 24, 40, .9);
+    --mini-icon-bg: rgba(16, 24, 40, .06);
+    --mini-dot: rgba(16, 24, 40, .22);
+    --mini-shadow-1: rgba(16, 24, 40, .18);
+    --mini-shadow-2: rgba(16, 24, 40, .16);
 }
+
 
 [data-theme="dim"] {
     --bg: #07070a;
@@ -81,7 +121,21 @@
     --accent-glow: rgba(184, 146, 106, 0.25);
 
     --gold: #c9a227;
+
+    /* 小窗播放器（夜深暖调） */
+    --mini-bg: #121016;
+    --mini-chrome-1: #1e1a24;
+    --mini-chrome-2: #171420;
+    --mini-border: rgba(184, 146, 106, .12);
+    --mini-text: rgba(201, 194, 184, .55);
+    --mini-icon: rgba(201, 194, 184, .5);
+    --mini-icon-hover: rgba(228, 214, 196, .95);
+    --mini-icon-bg: rgba(184, 146, 106, .12);
+    --mini-dot: rgba(184, 146, 106, .35);
+    --mini-shadow-1: rgba(0, 0, 0, .5);
+    --mini-shadow-2: rgba(0, 0, 0, .6);
 }
+
 
 /* 系统偏好浅色且未手动指定时跟随 */
 @media (prefers-color-scheme: light) {
@@ -134,6 +188,12 @@ button, input, select {
 }
 
 button { cursor: pointer; }
+
+/* 移动端触摸优化 */
+button, a, .chip, .video-card, .pl-item, .similar-item, .guide-opt, .series-card {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
 
 img { display: block; max-width: 100%; }
 
@@ -624,87 +684,197 @@ img { display: block; max-width: 100%; }
 }
 
 /* =========================================================
-   相似推荐
+   小窗播放 —— 与站点同语言的迷你播放器
    ========================================================= */
-.similar-section {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-soft);
-}
-
-.similar-title {
-    font-size: 13px;
-    font-weight: 650;
-    color: var(--text-2);
-    margin-bottom: 10px;
-}
-
-.similar-list {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-}
-
-.similar-item {
+.mini-player {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 380px;
+    height: 262px;
     display: flex;
-    gap: 10px;
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid var(--border-soft);
-    background: var(--surface);
-    cursor: pointer;
-    transition: var(--t);
-}
-.similar-item:hover {
-    border-color: var(--accent);
-    background: var(--surface-hover);
+    flex-direction: column;
+    background: var(--mini-bg);
+    border-radius: 14px;
+    overflow: hidden;
+    z-index: 2000;
+    border: 1px solid var(--mini-border);
+    box-shadow:
+        0 0 0 1px var(--mini-shadow-1),
+        0 18px 50px var(--mini-shadow-2),
+        0 2px 8px rgba(0, 0, 0, .22);
+    animation: miniIn .22s cubic-bezier(.2, .8, .2, 1);
+    /* 尺寸约束 */
+    min-width: 240px;
+    min-height: 176px;
+    max-width: 90vw;
+    max-height: 80vh;
 }
 
-.similar-item img {
-    width: 96px;
-    height: 54px;
-    object-fit: cover;
-    border-radius: 6px;
-    background: var(--surface-2);
+/* 切换视频时的微光脉冲 */
+.mini-player.pulse {
+    animation: miniPulse .5s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes miniPulse {
+    0%   { box-shadow: 0 0 0 1px var(--mini-shadow-1), 0 18px 50px var(--mini-shadow-2), 0 0 0 0 var(--accent-glow); }
+    45%  { box-shadow: 0 0 0 1px var(--mini-shadow-1), 0 18px 50px var(--mini-shadow-2), 0 0 0 6px var(--accent-glow); }
+    100% { box-shadow: 0 0 0 1px var(--mini-shadow-1), 0 18px 50px var(--mini-shadow-2), 0 0 0 0 var(--accent-glow); }
+}
+
+@keyframes miniIn {
+    from { opacity: 0; transform: translateY(6px) scale(.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 顶部细条：像 macOS 的拖拽栏 */
+.mini-chrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    height: 28px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, var(--mini-chrome-1) 0%, var(--mini-chrome-2) 100%);
+    border-bottom: 1px solid var(--mini-border);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.mini-chrome:active { cursor: grabbing; }
+
+/* 左侧小圆点暗示可拖拽 */
+.mini-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mini-dot);
     flex-shrink: 0;
 }
 
-.similar-item-body {
+.mini-title {
     flex: 1;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 3px;
-}
-
-.similar-item-title {
-    font-size: 12px;
-    font-weight: 550;
-    color: var(--text);
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.similar-item-meta {
     font-size: 11px;
-    color: var(--text-3);
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    color: var(--mini-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: .1px;
 }
 
-.similar-item-score {
-    margin-left: auto;
-    font-size: 10px;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 1px 6px;
-    border-radius: var(--r-pill);
-    align-self: center;
+.mini-tools {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.mini-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--mini-icon);
+    display: grid;
+    place-items: center;
+    transition: all .15s ease;
+}
+.mini-icon:hover {
+    background: var(--mini-icon-bg);
+    color: var(--mini-icon-hover);
+}
+.mini-icon:active { transform: scale(.92); }
+
+/* 舞台：视频居中 */
+.mini-stage {
+    flex: 1;
+    min-height: 0;
+    background: #000;
+    position: relative;
+}
+
+.mini-stage iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #000;
+}
+
+/* ---- 四角缩放手柄：角落有微妙的小圆点，hover 亮起 ---- */
+.mini-resize {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    z-index: 10;
+}
+.mini-resize::after {
+    content: '';
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .22);
+    opacity: 0;
+    transition: opacity .15s ease, background .15s ease;
+}
+.mini-player:hover .mini-resize::after,
+.mini-resize.active::after {
+    opacity: 1;
+    background: var(--accent);
+}
+
+.mini-resize.nw { top: 0; left: 0; cursor: nwse-resize; }
+.mini-resize.nw::after { top: 3px; left: 3px; }
+
+.mini-resize.ne { top: 0; right: 0; cursor: nesw-resize; }
+.mini-resize.ne::after { top: 3px; right: 3px; }
+
+.mini-resize.sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.mini-resize.sw::after { bottom: 3px; left: 3px; }
+
+.mini-resize.se { bottom: 0; right: 0; cursor: nwse-resize; }
+.mini-resize.se::after { bottom: 3px; right: 3px; }
+
+
+/* 手机上小窗贴边 */
+@media (max-width: 480px) {
+    .mini-player {
+        right: 8px;
+        bottom: 8px;
+        width: min(380px, calc(100vw - 16px));
+    }
+    .player-actions .btn-ghost,
+    .player-actions .btn-primary {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+}
+
+/* 轻提示 */
+.app-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    box-shadow: var(--shadow-2);
+    z-index: 4000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s var(--ease), transform .2s var(--ease);
+    max-width: calc(100vw - 32px);
+    text-align: center;
+}
+.app-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
 /* =========================================================
@@ -933,11 +1103,18 @@ img { display: block; max-width: 100%; }
     font-size: 14px;
 }
 
-/* ---------- 视频网格 ---------- */
+/* ---------- 视频网格 ----------
+   固定列数保证分页整齐：6/4/3/2 列，pageSize=12 都能被整除 */
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
+}
+
+@media (min-width: 1200px) {
+    .video-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
 }
 
 .video-card {
@@ -1204,7 +1381,7 @@ img { display: block; max-width: 100%; }
 .modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: 2500;
     background: rgba(6,8,12,.72);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -1349,11 +1526,83 @@ img { display: block; max-width: 100%; }
     overflow: hidden;
     background: #000;
     border: 1px solid var(--border);
+    transition: aspect-ratio .25s var(--ease);
 }
+
+/* 横屏：16:9 */
+.player-frame.orient-landscape {
+    aspect-ratio: 16 / 9;
+    max-height: 70vh;
+    margin: 0 auto;
+}
+
+/* 竖屏：9:16，居中收窄 */
+.player-frame.orient-portrait {
+    aspect-ratio: 9 / 16;
+    width: auto;
+    max-width: min(420px, 100%);
+    max-height: 70vh;
+    margin: 0 auto;
+}
+
 .player-frame iframe {
     width: 100%;
     height: 100%;
     border: 0;
+}
+
+/* 播放器加载态 */
+.player-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background:
+        radial-gradient(1200px 500px at 50% 120%, rgba(124, 140, 248, .12), transparent 60%),
+        #0a0c10;
+    z-index: 1;
+    opacity: 1;
+    transition: opacity .25s var(--ease);
+    pointer-events: none;
+}
+
+.player-loading.hidden {
+    opacity: 0;
+}
+
+.spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .18);
+    border-top-color: var(--accent);
+    animation: spin .9s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 12px;
+    color: var(--text-3);
+    letter-spacing: .3px;
+}
+
+.player-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.player-actions .btn-ghost,
+.player-actions .btn-primary {
+    flex: 0 1 auto;
+    min-width: 130px;
 }
 
 .modal-tip {
@@ -1380,7 +1629,7 @@ img { display: block; max-width: 100%; }
 .drawer-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1100;
+    z-index: 2600;
     background: rgba(6,8,12,.6);
     backdrop-filter: blur(4px);
     display: flex;
@@ -1525,8 +1774,9 @@ img { display: block; max-width: 100%; }
         gap: 8px;
     }
 
+    /* 3 列，12 条正好 4 行 */
     .video-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 12px;
     }
 
@@ -1538,12 +1788,51 @@ img { display: block; max-width: 100%; }
     .modal-actions .btn-primary {
         flex: 1 1 100%;
     }
+
+    /* 触摸目标放大 */
+    .chip, .theme-opt, .page-btn {
+        min-height: 36px;
+    }
+
+    .fav-btn, .pl-add-btn {
+        opacity: 1; /* 移动端始终可见，方便点按 */
+        width: 34px;
+        height: 34px;
+    }
 }
 
 @media (max-width: 480px) {
     .topbar-inner { padding: 10px 14px; }
     .filters-inner { padding: 12px 14px 6px; }
     .main-inner { padding: 0 14px; }
+
+    /* 2 列，12 条 6 行 */
+    .video-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
     .brand-text { font-size: 15px; }
-    .primary-btn { padding: 0 12px; font-size: 12px; }
+    .primary-btn, .secondary-btn { padding: 0 12px; font-size: 12px; }
+    .theme-seg { padding: 2px; }
+    .theme-opt { padding: 0 6px; font-size: 11px; height: 28px; }
+
+    .card-title { font-size: 11px; }
+    .card-time, .tag { font-size: 10px; }
+
+    .modal-card { padding: 14px; gap: 10px; border-radius: 12px; }
+    .modal-header { font-size: 15px; }
+
+    /* 引导选片单列 */
+    .guide-options { grid-template-columns: 1fr; }
+    .guide-result-card img { width: 110px; height: 62px; }
+
+    /* 系列卡片紧凑 */
+    .series-card { margin: 6px 8px; padding: 12px; }
+
+    /* 侧边抽屉全屏 */
+    .drawer { width: 100%; }
+
+    .pagination { gap: 6px; }
+    .page-btn { min-width: 32px; height: 32px; padding: 0 8px; font-size: 12px; }
 }

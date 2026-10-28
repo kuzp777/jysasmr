@@ -12,7 +12,11 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b0c10">
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://player.bilibili.com" crossorigin>
+    <link rel="preconnect" href="https://www.bilibili.com" crossorigin>
+    <link rel="preconnect" href="https://www.youtube.com" crossorigin>
+    <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
+    <link rel="stylesheet" href="style.css?v=20261028h">
 </head>
 <body>
 
@@ -252,22 +256,50 @@
     <div class="modal-card modal-card-wide">
         <button class="modal-close" id="videoModalClose" aria-label="关闭">×</button>
         <div class="modal-header" id="videoModalTitle">视频标题</div>
-        <div class="player-frame">
+        <div class="player-frame" id="playerFrame">
+            <div class="player-loading" id="playerLoading">
+                <div class="spinner"></div>
+                <div class="loading-text">加载中…</div>
+            </div>
             <iframe id="videoPlayer" src="" frameborder="0"
-                allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
         </div>
-        <div class="modal-tip">点击空白处关闭 · 右下角可全屏</div>
+        <div class="player-actions">
+            <button id="btnFullscreen" class="btn-ghost sm">⛶ 全屏播放</button>
+            <button id="btnMini" class="btn-primary sm">🪟 小窗播放</button>
+        </div>
+        <div class="modal-tip" id="playerTip">小窗播放可边听边选 · 右下角可全屏</div>
         <div class="playlist-nav" id="playlistNav" style="display:none">
             <button id="plPrevBtn" class="btn-ghost">⏮ 上一条</button>
             <span id="plPosition" class="pl-position"></span>
             <button id="plNextBtn" class="btn-ghost">下一条 ⏭</button>
         </div>
-        <!-- 相似推荐 -->
-        <div class="similar-section" id="similarSection">
-            <div class="similar-title">💡 听过这个的人也听</div>
-            <div class="similar-list" id="similarList"></div>
+    </div>
+</div>
+
+<!-- ========== 小窗播放（悬浮，可拖动/四角缩放） ========== -->
+<div id="miniPlayer" class="mini-player" style="display:none">
+    <div class="mini-chrome" id="miniHeader">
+        <span class="mini-dot"></span>
+        <span class="mini-title" id="miniTitle">正在播放</span>
+        <div class="mini-tools">
+            <button id="miniExpand" class="mini-icon" title="回到大窗" aria-label="回到大窗">
+                <svg viewBox="0 0 24 24" width="13" height="13"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
+            </button>
+            <button id="miniClose" class="mini-icon" title="关闭播放" aria-label="关闭播放">
+                <svg viewBox="0 0 24 24" width="13" height="13"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </button>
         </div>
     </div>
+    <div class="mini-stage">
+        <iframe id="miniIframe" src="about:blank" frameborder="0"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen
+            title="小窗播放"></iframe>
+    </div>
+    <div class="mini-resize nw" data-corner="nw"></div>
+    <div class="mini-resize ne" data-corner="ne"></div>
+    <div class="mini-resize sw" data-corner="sw"></div>
+    <div class="mini-resize se" data-corner="se"></div>
 </div>
 
 <!-- ========== 播放列表抽屉 ========== -->
@@ -287,8 +319,8 @@
     </aside>
 </div>
 
-<script src="user-data.js"></script>
-<script src="main.js"></script>
+<script src="user-data.js?v=20261028h"></script>
+<script src="main.js?v=20261028h"></script>
 <script>
 // PWA Service Worker
 if ('serviceWorker' in navigator) {

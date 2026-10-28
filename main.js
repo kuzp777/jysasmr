@@ -6,7 +6,7 @@ const VideoApp = {
         filteredList: [],
         currentRandomVideo: null,
         currentPage: 1,
-        pageSize: 9,
+        pageSize: 12,
         isPremiumFilterActive: false,
         isLiveReplayFilterActive: false,
         latestVideoCount: 3,
@@ -23,6 +23,8 @@ const VideoApp = {
         historyOnly: false,
         // 播放列表当前索引（-1 表示不在列表播放）
         playlistIndex: -1,
+        // 当前播放中的视频（小窗恢复用）
+        currentPlayingVideo: null,
     },
 
     // ==================== 本地存储 ====================
@@ -330,11 +332,13 @@ const VideoApp = {
         if (src === 'youtube') {
             const id = video.youtubeId || this.extractYoutubeIdFromLink(video.link);
             if (!id) return null;
-            return `https://www.youtube.com/embed/${id}?autoplay=0&rel=0`;
+            // 轻量参数：自动播、无推荐、无注释卡片、无品牌水印
+            return `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1`;
         }
         const bvid = this.extractBvidFromLink(video.link);
         if (!bvid) return null;
-        return `https://player.bilibili.com/player.html?bvid=${bvid}&p=1&high_quality=1&danmaku=1&theme=dark`;
+        // 关闭弹幕引擎（省一半加载），自动播放，允许 PIP
+        return `https://player.bilibili.com/player.html?bvid=${bvid}&p=1&autoplay=1&danmaku=0&as_wide=1&high_quality=1&allowfullscreen=true&pip=true`;
     },
 
     genId(video, index) {
@@ -369,6 +373,8 @@ const VideoApp = {
         this.bindPlaylistEvent();
         this.bindFiltersToggle();
         this.bindSyncEvent();
+        this.bindPlayerActions();
+        this.bindPlayerLoading();
         this.bindGuideEvent();
         this.bindSeriesEvent();
         this.readStateFromUrl();
@@ -753,92 +759,6 @@ const VideoApp = {
         });
     },
 
-    // ==================== 相似推荐 ====================
-    computeSimilar(video, limit = 5) {
-        const pool = this.state.videoList || [];
-        const srcTags = new Set((video.keywords || []).map(t => t.toLowerCase()));
-        const srcTitle = (video.name || '').toLowerCase();
-        const srcDur = this.parseDuration(video.duration);
-        const srcId = this.genId(video);
-
-        const scored = pool
-            .filter(v => this.genId(v) !== srcId)
-            .map(v => {
-                const tags = (v.keywords || []).map(t => t.toLowerCase());
-                let score = 0;
-                // 标签重合（主因）
-                tags.forEach(t => {
-                    if (srcTags.has(t)) score += 8;
-                    else {
-                        // 部分匹配
-                        for (const s of srcTags) {
-                            if (t.includes(s) || s.includes(t)) { score += 3; break; }
-                        }
-                    }
-                });
-                // 标题词重合
-                const title = (v.name || '').toLowerCase();
-                const words = srcTitle.split(/[\s·・|｜・、，,。.（）()【】\[\]]+/).filter(w => w.length >= 2);
-                words.forEach(w => { if (title.includes(w)) score += 4; });
-                // 时长相近
-                const d = this.parseDuration(v.duration);
-                if (srcDur > 0 && d > 0) {
-                    const ratio = Math.min(srcDur, d) / Math.max(srcDur, d);
-                    score += ratio * 6;
-                }
-                // 同来源加分
-                if (this.getVideoSource(v) === this.getVideoSource(video)) score += 2;
-                return { v, score };
-            })
-            .filter(x => x.score > 6)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit);
-
-        return scored;
-    },
-
-    renderSimilar(video) {
-        const list = document.getElementById('similarList');
-        const section = document.getElementById('similarSection');
-        if (!list) return;
-        const sims = this.computeSimilar(video, 5);
-        if (!sims || sims.length === 0) {
-            if (section) section.style.display = 'none';
-            return;
-        }
-        if (section) section.style.display = '';
-
-        list.innerHTML = sims.map(({ v, score }) => {
-            let cover = v.cover || '';
-            if (cover && !cover.startsWith('http') && !cover.startsWith('data:')) {
-                if (!cover.startsWith('covers/') && !cover.startsWith('/')) cover = 'covers/' + cover;
-                cover = './' + cover.replace(/^\//, '');
-            }
-            const src = this.getVideoSource(v) === 'youtube' ? 'YouTube' : 'B站';
-            const matchPct = Math.min(99, Math.round(score));
-            return `
-                <div class="similar-item" data-id="${this.escAttr(this.genId(v))}">
-                    <img src="${this.escAttr(cover)}" alt="" loading="lazy">
-                    <div class="similar-item-body">
-                        <div class="similar-item-title">${this.escHtml(v.name)}</div>
-                        <div class="similar-item-meta">
-                            <span>⏱ ${this.escHtml(v.duration || '')}</span>
-                            <span>${src}</span>
-                        </div>
-                    </div>
-                    <div class="similar-item-score">${matchPct}% 匹配</div>
-                </div>
-            `;
-        }).join('');
-
-        list.querySelectorAll('.similar-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const v = this.state.videoList.find(x => this.genId(x) === item.dataset.id);
-                if (v) this.openVideoModal(v);
-            });
-        });
-    },
-
     // ==================== 数据同步（导出/导入/同步码） ====================
     bindSyncEvent() {
         const exportBtn = document.getElementById('exportBtn');
@@ -1079,44 +999,39 @@ const VideoApp = {
     // ==================== 标签筛选（一级/二级） ====================
     TAG_CATEGORIES: [
         {
+            name: '人声',
+            icon: '🗣',
+            tags: ['有人声', '无对话', '轻语', '耳语']
+        },
+        {
             name: '触发音',
             icon: '🎵',
-            tags: ['口腔音', '敲击音', '刮擦', '抓挠', '摩擦音', '轻语', '耳语', '英文轻语', '翻书', '刷子音', '剪刀音', '梳音', '水声', '叮当声', '音叉', '白噪音', '棕噪音', '雨声', '呼吸声', '吹气', '泡沫音', '涂抹', '口水画', '手指灯音效', '双耳分听', '叠层声音', '刺痛', '刮耳', '采耳', '无对话', '有人声']
+            tags: ['口腔音', '敲击音', '双耳分听', '白噪音', '叠层声音', '抓挠', '刮擦', '水声', '音叉', '涂抹', '刷子音', '雨声', '剪刀音']
         },
         {
             name: '视觉',
             icon: '👁️',
-            tags: ['视觉触发', '灯光', '手势', '隐形触发', '模糊/失焦', '镜头触摸']
+            tags: ['视觉触发', '灯光', '隐形触发', '模糊/失焦', '手势', '镜头触摸']
         },
         {
             name: '场景',
             icon: '🎭',
-            tags: ['化妆', '理发', '头疗', '头皮检查', '眼部检查', '眼部清洁', '颅神经检查', '皮肤检测', '全身检查', '护肤', '按摩', '刮痧', '看牙', 'SPA', '机器人维修', '开箱', '猫咪', '法医', '裁缝', '冷脸上司', '吸血鬼']
+            tags: ['按摩', '护肤', '化妆', '眼部检查', '理发', '头疗', '全身检查', '采耳', '猫咪', 'SPA', '机器人维修']
         },
         {
             name: '效果',
             icon: '💤',
-            tags: ['助眠', '解压', '放松', '冥想', '睡眠引导', '正念', '情绪安抚', '缓解压力', '陪伴', '酥麻', '大脑放松', '疗愈', '安神', '专注力测试', '听力测试']
-        },
-        {
-            name: '音效',
-            icon: '🔊',
-            tags: ['轻柔', '黏糊糊', '双声道', '3D音效', '有BGM']
-        },
-        {
-            name: '自然',
-            icon: '🌿',
-            tags: ['雨声', '雨棍', '火焰']
+            tags: ['专注力测试', '疗愈', '冥想', '酥麻', '大脑放松', '解压', '陪伴', '听力测试', '睡眠引导']
         },
         {
             name: '风格',
             icon: '🎬',
-            tags: ['沉浸式', '竖屏', '合集', 'Lofi', '微恐', '角色扮演']
+            tags: ['竖屏', '沉浸式', 'Lofi', '角色扮演', '合集', '微恐']
         },
         {
             name: '特殊',
             icon: '⚡',
-            tags: ['充电专属', '能量音乐', 'Emoji触发', '蓝色触发', '粉色触发', '英文']
+            tags: ['Emoji触发', '能量音乐', '英文']
         }
     ],
 
@@ -1597,22 +1512,60 @@ const VideoApp = {
         const modal = document.getElementById('videoModal');
         const modalTitle = document.getElementById('videoModalTitle');
         const player = document.getElementById('videoPlayer') || document.getElementById('bilibiliPlayer');
+        const loading = document.getElementById('playerLoading');
 
         const playerUrl = this.buildPlayerUrl(videoItem);
         if (!playerUrl) return alert('视频链接无效');
 
-        // 记录观看历史
         this.addHistory(this.genId(videoItem), videoItem.name);
-
-        // 非播放列表入口则退出列表模式
         if (!fromPlaylist) this.state.playlistIndex = -1;
 
         if (modalTitle) modalTitle.textContent = videoItem.name;
-        if (player) player.src = playerUrl;
+
+        // 相同视频已在播放 → 只是重新显示弹窗，不重载
+        const sameVideo = this.state.currentPlayingVideo
+            && this.genId(this.state.currentPlayingVideo) === this.genId(videoItem)
+            && player && (player.getAttribute('src') || '').includes(playerUrl.split('?')[0]);
+
+        if (player && !sameVideo) {
+            // 显示加载态
+            if (loading) {
+                loading.classList.remove('hidden');
+                // 给封面做背景，感知更快
+                const cover = videoItem.cover ? this.resolveCover(videoItem.cover) : '';
+                if (cover) loading.style.backgroundImage = `linear-gradient(rgba(10,12,16,.55), rgba(10,12,16,.85)), url('${cover}')`;
+                loading.style.backgroundSize = 'cover';
+                loading.style.backgroundPosition = 'center';
+            }
+            // 先置空再赋值，强制重建
+            player.src = 'about:blank';
+            requestAnimationFrame(() => { player.src = playerUrl; });
+        }
+
         if (modal) modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         this.updatePlaylistNav();
-        this.renderSimilar(videoItem);
+        this.applyPlayerOrientation(videoItem);
+        this.state.currentPlayingVideo = videoItem;
+        // 小窗若正在播同一视频，收起小窗把焦点给大窗
+        this.syncMiniOnModalOpen(this.genId(videoItem));
+    },
+
+    resolveCover(cover) {
+        if (!cover) return '';
+        if (cover.startsWith('http') || cover.startsWith('data:')) return cover;
+        if (!cover.startsWith('covers/') && !cover.startsWith('/')) cover = 'covers/' + cover;
+        return './' + cover.replace(/^\//, '');
+    },
+
+    bindPlayerLoading() {
+        const player = document.getElementById('videoPlayer');
+        const loading = document.getElementById('playerLoading');
+        if (!player || !loading) return;
+        // iframe load 事件：加载完成淡出
+        player.addEventListener('load', () => {
+            setTimeout(() => loading.classList.add('hidden'), 220);
+        });
     },
 
     closeVideoModal() {
@@ -1621,6 +1574,319 @@ const VideoApp = {
         if (modal) modal.style.display = 'none';
         if (player) player.src = '';
         document.body.style.overflow = '';
+    },
+
+    // ==================== 播放器：横竖屏 + 全屏 + 小窗 ====================
+    detectOrientation(video) {
+        if (!video) return 'landscape';
+        const kws = video.keywords || [];
+        const name = video.name || '';
+        if (kws.includes('竖屏') || /竖屏|vertical|shorts|竖版/i.test(name)) return 'portrait';
+        // 时长短且是短视频系列
+        const sec = this.parseDuration(video.duration);
+        if (sec > 0 && sec <= 60 && /emoji|快速|random trigger/i.test(name)) return 'portrait';
+        return 'landscape';
+    },
+
+    applyPlayerOrientation(video) {
+        const frame = document.getElementById('playerFrame');
+        if (!frame) return;
+        const orient = this.detectOrientation(video);
+        frame.classList.remove('orient-landscape', 'orient-portrait');
+        frame.classList.add(orient === 'portrait' ? 'orient-portrait' : 'orient-landscape');
+    },
+
+    bindPlayerActions() {
+        // 事件委托：不论元素何时插入都能响应
+        document.addEventListener('click', (e) => {
+            const t = e.target;
+            if (!(t instanceof Element)) return;
+
+            if (t.closest('#btnFullscreen')) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.requestPlayerFullscreen();
+                return;
+            }
+            if (t.closest('#btnMini')) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.enterMiniPlayer();
+                return;
+            }
+            if (t.closest('#miniClose')) {
+                e.preventDefault();
+                this.exitMiniPlayer();
+                return;
+            }
+            if (t.closest('#miniExpand')) {
+                e.preventDefault();
+                this.exitMiniPlayer(true);
+                return;
+            }
+        });
+
+        const miniHeader = document.getElementById('miniHeader');
+        if (miniHeader) this.bindMiniDrag(miniHeader);
+
+        // 四角缩放
+        this.bindMiniResize();
+    },
+
+    // ---- 四角缩放 ----
+    MINI_SIZE: { minW: 240, minH: 176, maxW: 900, maxH: 700 },
+
+    bindMiniResize() {
+        const mini = document.getElementById('miniPlayer');
+        if (!mini) return;
+
+        // 恢复上次尺寸
+        const saved = this.lsGet('jys_mini_size', null);
+        if (saved && saved.w && saved.h) {
+            this.applyMiniSize(saved.w, saved.h);
+        } else {
+            this.applyMiniSize(380, 262);
+        }
+
+        document.querySelectorAll('.mini-resize').forEach(handle => {
+            const onDown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handle.classList.add('active');
+
+                const corner = handle.dataset.corner;
+                const rect = mini.getBoundingClientRect();
+                const startW = rect.width, startH = rect.height;
+                const startLeft = rect.left, startTop = rect.top;
+                const pt = e.touches ? e.touches[0] : e;
+                const sx = pt.clientX, sy = pt.clientY;
+
+                const onMove = (e2) => {
+                    e2.preventDefault();
+                    const p = e2.touches ? e2.touches[0] : e2;
+                    const dx = p.clientX - sx;
+                    const dy = p.clientY - sy;
+
+                    const { minW, minH, maxW, maxH } = this.MINI_SIZE;
+                    let w = startW, h = startH;
+
+                    // 依据方向计算
+                    if (corner.includes('e')) w = startW + dx;      // 向右拖 = 变宽
+                    if (corner.includes('w')) w = startW - dx;      // 向左拖 = 变宽
+                    if (corner.includes('s')) h = startH + dy;      // 向下拖 = 变高
+                    if (corner.includes('n')) h = startH - dy;      // 向上拖 = 变高
+
+                    // 保比例（可选）：这里不强制，用户可自由调
+                    // 最小/最大约束
+                    w = Math.max(minW, Math.min(w, Math.min(maxW, window.innerWidth - 16)));
+                    h = Math.max(minH, Math.min(h, Math.min(maxH, window.innerHeight - 16)));
+
+                    // 对于 n/w 边，拖拽会改变 left/top，需要保持右下角不动
+                    if (corner.includes('w')) {
+                        const newLeft = startLeft + (startW - w);
+                        mini.style.left = newLeft + 'px';
+                        mini.style.right = 'auto';
+                    }
+                    if (corner.includes('n')) {
+                        const newTop = startTop + (startH - h);
+                        mini.style.top = newTop + 'px';
+                        mini.style.bottom = 'auto';
+                    }
+
+                    this.applyMiniSize(w, h);
+                };
+
+                const onUp = () => {
+                    handle.classList.remove('active');
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('touchmove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                    window.removeEventListener('touchend', onUp);
+                    const r = mini.getBoundingClientRect();
+                    this.lsSet('jys_mini_size', { w: Math.round(r.width), h: Math.round(r.height) });
+                };
+
+                window.addEventListener('mousemove', onMove, { passive: false });
+                window.addEventListener('touchmove', onMove, { passive: false });
+                window.addEventListener('mouseup', onUp);
+                window.addEventListener('touchend', onUp);
+            };
+
+            handle.addEventListener('mousedown', onDown);
+            handle.addEventListener('touchstart', onDown, { passive: false });
+        });
+    },
+
+    applyMiniSize(w, h) {
+        const mini = document.getElementById('miniPlayer');
+        if (!mini) return;
+        mini.style.width = Math.round(w) + 'px';
+        mini.style.height = Math.round(h) + 'px';
+    },
+
+    requestPlayerFullscreen() {
+        const frame = document.getElementById('playerFrame');
+        if (!frame) return;
+        const tryFs = (el, fn) => {
+            try {
+                const r = fn.call(el);
+                if (r && r.catch) r.catch(() => this.toast('全屏被浏览器拦截，可点播放器右下角全屏'));
+            } catch (err) {
+                this.toast('全屏被浏览器拦截，可点播放器右下角全屏');
+            }
+        };
+        if (frame.requestFullscreen) tryFs(frame, frame.requestFullscreen);
+        else if (frame.webkitRequestFullscreen) tryFs(frame, frame.webkitRequestFullscreen);
+        else if (frame.msRequestFullscreen) tryFs(frame, frame.msRequestFullscreen);
+        else this.toast('当前浏览器不支持全屏');
+    },
+
+    toast(msg) {
+        let el = document.getElementById('appToast');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'appToast';
+            el.className = 'app-toast';
+            document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    },
+
+    enterMiniPlayer() {
+        const modal = document.getElementById('videoModal');
+        const player = document.getElementById('videoPlayer');
+        const mini = document.getElementById('miniPlayer');
+        const miniIframe = document.getElementById('miniIframe');
+        const miniTitle = document.getElementById('miniTitle');
+
+        if (!mini || !miniIframe) return;
+
+        // ★ 优先从 currentPlayingVideo 重建 URL，绕开 about:blank 短路
+        const video = this.state.currentPlayingVideo;
+        let src = '';
+        if (video) src = this.buildPlayerUrl(video) || '';
+        if (!src && player) {
+            const ps = player.getAttribute('src') || player.src || '';
+            if (ps && ps !== 'about:blank') src = ps;
+        }
+        if (!src) {
+            this.toast('请先打开一个视频');
+            return;
+        }
+
+        // 大窗关掉，避免双播放
+        if (player) player.src = 'about:blank';
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+
+        // 标题
+        if (miniTitle) {
+            const t = document.getElementById('videoModalTitle');
+            miniTitle.textContent = (video && video.name) || (t && t.textContent) || '正在播放';
+        }
+
+        // 尺寸位置（首次使用默认值，之后用记忆值）
+        const sz = this.lsGet('jys_mini_size', null);
+        if (sz && sz.w >= 200 && sz.h >= 150) {
+            this.applyMiniSize(sz.w, sz.h);
+        } else {
+            this.applyMiniSize(380, 262);
+        }
+        const pos = this.lsGet('jys_mini_pos', null);
+        if (pos && typeof pos.left === 'number' && pos.left >= 0 && pos.top >= 0) {
+            mini.style.left = pos.left + 'px';
+            mini.style.top = pos.top + 'px';
+            mini.style.right = 'auto';
+            mini.style.bottom = 'auto';
+        }
+
+        // 显示小窗
+        mini.style.display = 'flex';
+
+        // ★ 无缝切换：同一视频不重载；不同视频平滑换 src
+        const cur = miniIframe.getAttribute('src') || '';
+        const curKey = cur && cur !== 'about:blank' ? cur.split('?')[0] : '';
+        const newKey = src.split('?')[0];
+        if (curKey && curKey === newKey) {
+            // 已在播放该视频，不动
+            return;
+        }
+        miniIframe.src = 'about:blank';
+        requestAnimationFrame(() => { miniIframe.src = src; });
+
+        // 切换时微光反馈
+        mini.classList.remove('pulse');
+        void mini.offsetWidth;
+        mini.classList.add('pulse');
+    },
+
+    // ★ 大窗打开时若小窗在播同一视频，直接把焦点切回大窗（避免双播）
+    syncMiniOnModalOpen(videoId) {
+        const mini = document.getElementById('miniPlayer');
+        const miniIframe = document.getElementById('miniIframe');
+        if (!mini || mini.style.display === 'none') return;
+        const cur = miniIframe.getAttribute('src') || '';
+        if (!cur || cur === 'about:blank') return;
+        // 只在小窗播的确实是当前视频时才收起，其它情况保持小窗继续播
+        const miniPlayingId = this.state.currentPlayingVideo
+            ? this.genId(this.state.currentPlayingVideo) : '';
+        if (miniPlayingId && videoId === miniPlayingId) {
+            this.exitMiniPlayer(false);
+        }
+    },
+
+    exitMiniPlayer(backToModal) {
+        const mini = document.getElementById('miniPlayer');
+        const miniIframe = document.getElementById('miniIframe');
+        if (miniIframe) miniIframe.src = 'about:blank';
+        if (mini) mini.style.display = 'none';
+
+        if (backToModal && this.state.currentPlayingVideo) {
+            this.openVideoModal(this.state.currentPlayingVideo);
+        }
+    },
+
+    bindMiniDrag(handle) {
+        let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+        const mini = document.getElementById('miniPlayer');
+        if (!mini) return;
+
+        const onDown = (e) => {
+            dragging = true;
+            const pt = e.touches ? e.touches[0] : e;
+            sx = pt.clientX; sy = pt.clientY;
+            const rect = mini.getBoundingClientRect();
+            ox = rect.left; oy = rect.top;
+            e.preventDefault();
+        };
+        const onMove = (e) => {
+            if (!dragging) return;
+            const pt = e.touches ? e.touches[0] : e;
+            let nx = ox + (pt.clientX - sx);
+            let ny = oy + (pt.clientY - sy);
+            // 边界限制
+            nx = Math.max(0, Math.min(nx, window.innerWidth - mini.offsetWidth));
+            ny = Math.max(0, Math.min(ny, window.innerHeight - mini.offsetHeight));
+            mini.style.left = nx + 'px';
+            mini.style.top = ny + 'px';
+            mini.style.right = 'auto';
+        };
+        const onUp = () => {
+            if (!dragging) return;
+            dragging = false;
+            const rect = mini.getBoundingClientRect();
+            this.lsSet('jys_mini_pos', { left: Math.round(rect.left), top: Math.round(rect.top) });
+        };
+
+        handle.addEventListener('mousedown', onDown);
+        handle.addEventListener('touchstart', onDown, { passive: false });
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchend', onUp);
     },
 
     bindVideoModalEvent() {
