@@ -1,0 +1,20 @@
+# 备份文件
+*.bak
+*.bak.*
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 本地 Cookie（同步脚本用，含敏感信息）
+cookies.txt
+
+# Node
+node_modules/
+.wrangler/

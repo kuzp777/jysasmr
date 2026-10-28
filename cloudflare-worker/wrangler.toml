@@ -1,0 +1,10 @@
+name = "jys-asmr-users"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Step 1: wrangler d1 create jys-users
+# Step 2: paste the database_id below
+[[d1_databases]]
+binding = "DB"
+database_name = "jys-users"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
