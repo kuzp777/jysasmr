@@ -369,8 +369,474 @@ const VideoApp = {
         this.bindPlaylistEvent();
         this.bindFiltersToggle();
         this.bindSyncEvent();
+        this.bindGuideEvent();
+        this.bindSeriesEvent();
         this.readStateFromUrl();
         this.updateFilterCount();
+    },
+
+    // ==================== 引导选片：今晚听什么 ====================
+    guideState: {
+        step: 1,
+        duration: null,
+        mood: null,
+        voice: null,
+    },
+
+    MOOD_RULES: {
+        relax: ['助眠', '放松', '解压', '按摩', '头疗', '轻语', '冥想', '睡眠引导', '疗愈', '护肤', '化妆'],
+        focus: ['专注力测试', '指令', '听力测试', '检查', '专注力'],
+        asmr: ['敲击音', '口腔音', '采耳', '抓挠', '刮擦', '触发音', '白噪音', '双耳分听', '叠层声音'],
+    },
+
+    VOICE_RULES: {
+        talk: ['轻语', '耳语', '对话', '有人声', '人声', '角色扮演'],
+        notalk: ['无对话', 'No Talking', 'no talking'],
+    },
+
+    bindGuideEvent() {
+        const openBtn = document.getElementById('guideBtn');
+        const modal = document.getElementById('guideModal');
+        const closeBtn = document.getElementById('guideClose');
+        const backBtn = document.getElementById('guideBack');
+        const againBtn = document.getElementById('guideAgain');
+        if (!openBtn || !modal) return;
+
+        openBtn.addEventListener('click', () => {
+            this.guideState = { step: 1, duration: null, mood: null, voice: null };
+            this.renderGuideStep();
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        });
+
+        if (closeBtn) closeBtn.addEventListener('click', () => this.closeGuide());
+        modal.addEventListener('click', e => { if (e.target === modal) this.closeGuide(); });
+
+        if (backBtn) backBtn.addEventListener('click', () => {
+            if (this.guideState.step > 1) {
+                this.guideState.step--;
+                this.renderGuideStep();
+            }
+        });
+
+        if (againBtn) againBtn.addEventListener('click', () => this.pickGuideResult());
+
+        // 三组选项
+        const bindOpts = (wrapId, key) => {
+            const wrap = document.getElementById(wrapId);
+            if (!wrap) return;
+            wrap.addEventListener('click', e => {
+                const btn = e.target.closest('.guide-opt');
+                if (!btn) return;
+                this.guideState[key] = btn.dataset.val;
+                // 进入下一步或出结果
+                if (this.guideState.step < 3) {
+                    this.guideState.step++;
+                    this.renderGuideStep();
+                } else {
+                    this.guideState.step = 4;
+                    this.pickGuideResult();
+                }
+            });
+        };
+        bindOpts('guideDuration', 'duration');
+        bindOpts('guideMood', 'mood');
+        bindOpts('guideVoice', 'voice');
+    },
+
+    closeGuide() {
+        const modal = document.getElementById('guideModal');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+    },
+
+    renderGuideStep() {
+        const step = this.guideState.step;
+        document.querySelectorAll('.guide-step').forEach(el => {
+            const n = parseInt(el.dataset.step, 10);
+            el.hidden = n !== step;
+        });
+        const progress = document.getElementById('guideProgress');
+        if (progress) {
+            progress.textContent = step >= 4 ? '为你挑选完成' : `第 ${step} / 3 步`;
+        }
+        const backBtn = document.getElementById('guideBack');
+        if (backBtn) backBtn.hidden = step <= 1 || step >= 4;
+        const againBtn = document.getElementById('guideAgain');
+        if (againBtn) againBtn.hidden = step < 4;
+        const subtitle = document.getElementById('guideSubtitle');
+        if (subtitle) {
+            subtitle.textContent = step >= 4 ? '不喜欢？换个角度再挑一个' : '三步帮你挑一个，选择困难退散';
+        }
+    },
+
+    scoreGuideVideo(v) {
+        const { duration, mood, voice } = this.guideState;
+        const sec = this.parseDuration(v.duration);
+        let score = 0;
+
+        // 时长匹配（0–40 分）
+        const ranges = {
+            short: [0, 300], medium: [300, 1200], long: [1200, 3600], xlong: [3600, Infinity],
+        };
+        const r = ranges[duration];
+        if (r) {
+            if (sec >= r[0] && sec < r[1]) score += 40;
+            else if (sec < r[0]) score += 15; // 短了也行
+            else score += 10;
+        }
+
+        // 氛围匹配（0–40）
+        const tags = (v.keywords || []).map(t => t.toLowerCase());
+        const title = (v.name || '').toLowerCase();
+        if (mood && mood !== 'any') {
+            const rules = this.MOOD_RULES[mood] || [];
+            const hit = rules.filter(rule => {
+                const lr = rule.toLowerCase();
+                return tags.some(t => t.includes(lr)) || title.includes(lr);
+            }).length;
+            score += Math.min(40, hit * 12);
+        } else {
+            score += 20;
+        }
+
+        // 人声匹配（0–20）
+        if (voice && voice !== 'any') {
+            const rules = this.VOICE_RULES[voice] || [];
+            const hit = rules.some(rule => {
+                const lr = rule.toLowerCase();
+                return tags.some(t => t.includes(lr)) || title.includes(lr);
+            });
+            score += hit ? 20 : 5;
+        } else {
+            score += 10;
+        }
+
+        return score;
+    },
+
+    pickGuideResult() {
+        const pool = this.state.videoList || [];
+        if (pool.length === 0) return;
+        const scored = pool
+            .map(v => ({ v, s: this.scoreGuideVideo(v) }))
+            .sort((a, b) => b.s - a.s);
+        // 从前 20 名里随机抽一个，避免每次都一样
+        const top = scored.slice(0, Math.min(20, scored.length));
+        const pick = top[Math.floor(Math.random() * top.length)].v;
+        this.renderGuideResult(pick, scored);
+    },
+
+    renderGuideResult(video, scored) {
+        const box = document.getElementById('guideResult');
+        if (!box) return;
+
+        let cover = video.cover || '';
+        if (cover && !cover.startsWith('http') && !cover.startsWith('data:')) {
+            if (!cover.startsWith('covers/') && !cover.startsWith('/')) cover = 'covers/' + cover;
+            cover = './' + cover.replace(/^\//, '');
+        }
+        const src = this.getVideoSource(video);
+        const srcLabel = src === 'youtube' ? 'YouTube' : 'B 站';
+        const date = (video.uploadTime || '').slice(0, 10);
+
+        // 3 个备选
+        const others = (scored || [])
+            .filter(x => x.v !== video)
+            .slice(0, 3)
+            .map(x => x.v);
+
+        box.innerHTML = `
+            <div class="guide-result-card" data-id="${this.escAttr(this.genId(video))}">
+                <img src="${this.escAttr(cover)}" alt="" loading="lazy">
+                <div class="guide-result-body">
+                    <div class="guide-result-title">${this.escHtml(video.name)}</div>
+                    <div class="guide-result-meta">
+                        <span>📅 ${this.escHtml(date)}</span>
+                        <span>⏱ ${this.escHtml(video.duration || '')}</span>
+                        <span>▶ ${srcLabel}</span>
+                    </div>
+                    <div class="guide-result-actions">
+                        <button class="btn-primary sm" data-act="play">▶ 立即播放</button>
+                        <button class="btn-ghost sm" data-act="next">🔄 换一个</button>
+                    </div>
+                </div>
+            </div>
+            ${others.length ? `<div class="guide-subtitle" style="margin-top:6px">备选</div>` : ''}
+            ${others.map(o => {
+                let oc = o.cover || '';
+                if (oc && !oc.startsWith('http') && !oc.startsWith('data:')) {
+                    if (!oc.startsWith('covers/') && !oc.startsWith('/')) oc = 'covers/' + oc;
+                    oc = './' + oc.replace(/^\//, '');
+                }
+                return `
+                    <div class="guide-result-card" data-id="${this.escAttr(this.genId(o))}" style="padding:8px">
+                        <img src="${this.escAttr(oc)}" alt="" style="width:100px;height:56px">
+                        <div class="guide-result-body">
+                            <div class="guide-result-title" style="font-size:13px">${this.escHtml(o.name)}</div>
+                            <div class="guide-result-meta">
+                                <span>⏱ ${this.escHtml(o.duration || '')}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        `;
+
+        // 绑定播放
+        box.querySelectorAll('.guide-result-card').forEach(card => {
+            const id = card.dataset.id;
+            const video2 = this.state.videoList.find(x => this.genId(x) === id);
+            if (!video2) return;
+            card.addEventListener('click', (e) => {
+                const act = e.target.dataset && e.target.dataset.act;
+                if (act === 'next') {
+                    this.pickGuideResult();
+                    return;
+                }
+                // 点任意位置 → 播放
+                this.closeGuide();
+                this.openVideoModal(video2);
+            });
+        });
+
+        this.renderGuideStep();
+    },
+
+    // ==================== 系列合集 ====================
+    SERIES_DEFS: [
+        {
+            id: 'headspa', name: '🧖 头疗 / 头皮按摩', desc: '头疗、头皮检查、深度放松',
+            match: ['头疗', '头皮', '按摩'],
+        },
+        {
+            id: 'focus', name: '🎯 专注力测试', desc: '指令、专注、注意力挑战',
+            match: ['专注力测试', '专注力', '指令'],
+        },
+        {
+            id: 'ear', name: '👂 采耳 / 耳部护理', desc: '掏耳、耳语、耳部清洁',
+            match: ['采耳', '掏耳', '耳部', '耳道', '耳语'],
+        },
+        {
+            id: 'mouth', name: '👄 口腔音', desc: '口腔、口水、咀嚼',
+            match: ['口腔音', '口水', '咀嚼', '黏糊'],
+        },
+        {
+            id: 'tapping', name: '🎵 敲击 / 触发音', desc: '敲击、抓挠、刮擦、刷子',
+            match: ['敲击', '抓挠', '刮擦', '刷子', '触发音', '摩擦'],
+        },
+        {
+            id: 'makeup', name: '💄 化妆 / 护肤', desc: '化妆、护肤、SPA、美容',
+            match: ['化妆', '护肤', 'SPA', '美容', '卸妆'],
+        },
+        {
+            id: 'haircut', name: '💈 理发', desc: '剪发、理发店、修面',
+            match: ['理发', '剪发', '剪刀', '修面'],
+        },
+        {
+            id: 'meditation', name: '🧘 冥想 / 放松', desc: '冥想、正念、能量、疗愈',
+            match: ['冥想', '正念', '能量', '疗愈', '睡眠引导'],
+        },
+        {
+            id: 'live', name: '📺 直播回放', desc: '直播录像，整夜陪伴',
+            match: ['直播'],
+            extra: v => v.isLiveReplay,
+        },
+        {
+            id: 'premium', name: '⚡ 充电专属', desc: '仅充电用户可见的专属内容',
+            match: ['充电专属'],
+            extra: v => v.isPremium,
+        },
+        {
+            id: 'short', name: '⚡ 竖屏 / 快速', desc: '5 分钟以内的快速助眠',
+            match: ['竖屏'],
+            extra: v => this.parseDuration(v.duration) > 0 && this.parseDuration(v.duration) <= 300,
+        },
+        {
+            id: 'lofi', name: '🎬 Lofi / 氛围', desc: 'Lofi 风、氛围陪伴',
+            match: ['Lofi', 'lofi'],
+        },
+    ],
+
+    bindSeriesEvent() {
+        const openBtn = document.getElementById('seriesBtn');
+        const drawer = document.getElementById('seriesDrawer');
+        const closeBtn = document.getElementById('seriesCloseBtn');
+        if (!openBtn || !drawer) return;
+
+        openBtn.addEventListener('click', () => {
+            this.renderSeriesList();
+            drawer.style.display = 'flex';
+        });
+        if (closeBtn) closeBtn.addEventListener('click', () => drawer.style.display = 'none');
+        drawer.addEventListener('click', e => { if (e.target === drawer) drawer.style.display = 'none'; });
+    },
+
+    seriesMatch(def, v) {
+        if (def.extra && def.extra.call(this, v)) return true;
+        const tags = (v.keywords || []).map(t => t.toLowerCase());
+        const title = (v.name || '').toLowerCase();
+        return (def.match || []).some(rule => {
+            const lr = rule.toLowerCase();
+            return tags.some(t => t.includes(lr)) || title.includes(lr);
+        });
+    },
+
+    renderSeriesList() {
+        const box = document.getElementById('seriesList');
+        if (!box) return;
+        const pool = this.state.videoList || [];
+        const items = this.SERIES_DEFS
+            .map(def => {
+                const videos = pool.filter(v => this.seriesMatch(def, v));
+                return { def, videos };
+            })
+            .filter(x => x.videos.length > 0)
+            .sort((a, b) => b.videos.length - a.videos.length);
+
+        if (items.length === 0) {
+            box.innerHTML = '<div class="playlist-empty">暂时没有识别出系列</div>';
+            return;
+        }
+
+        box.innerHTML = items.map(({ def, videos }) => {
+            // 取该系列的前几个标签
+            const tagCount = {};
+            videos.forEach(v => (v.keywords || []).forEach(t => {
+                tagCount[t] = (tagCount[t] || 0) + 1;
+            }));
+            const topTags = Object.entries(tagCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([t]) => t);
+            return `
+                <div class="series-card" data-id="${def.id}">
+                    <div class="series-card-title">
+                        ${this.escHtml(def.name)}
+                        <span class="series-card-count">${videos.length}</span>
+                    </div>
+                    <div class="series-card-desc">${this.escHtml(def.desc)}</div>
+                    <div class="series-card-tags">
+                        ${topTags.map(t => `<span>${this.escHtml(t)}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        box.querySelectorAll('.series-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const def = this.SERIES_DEFS.find(d => d.id === card.dataset.id);
+                if (!def) return;
+                // 用关键词筛选：把系列 match 的第一个词塞进 activeKeywords
+                this.state.activeKeywords.clear();
+                // 优先用系列里最能命中的关键词
+                const pool = this.state.videoList || [];
+                const videos = pool.filter(v => this.seriesMatch(def, v));
+                // 从视频标签里挑 1 个最共通的
+                const tagCount = {};
+                videos.forEach(v => (v.keywords || []).forEach(t => {
+                    tagCount[t] = (tagCount[t] || 0) + 1;
+                }));
+                const best = Object.entries(tagCount).sort((a, b) => b[1] - a[1])[0];
+                if (best) {
+                    this.state.activeKeywords.add(best[0]);
+                } else if (def.match && def.match[0]) {
+                    this.state.activeKeywords.add(def.match[0]);
+                }
+                this.syncSearchInput();
+                this.syncTagHighlight();
+                this.filterVideos();
+                const drawer = document.getElementById('seriesDrawer');
+                if (drawer) drawer.style.display = 'none';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+    },
+
+    // ==================== 相似推荐 ====================
+    computeSimilar(video, limit = 5) {
+        const pool = this.state.videoList || [];
+        const srcTags = new Set((video.keywords || []).map(t => t.toLowerCase()));
+        const srcTitle = (video.name || '').toLowerCase();
+        const srcDur = this.parseDuration(video.duration);
+        const srcId = this.genId(video);
+
+        const scored = pool
+            .filter(v => this.genId(v) !== srcId)
+            .map(v => {
+                const tags = (v.keywords || []).map(t => t.toLowerCase());
+                let score = 0;
+                // 标签重合（主因）
+                tags.forEach(t => {
+                    if (srcTags.has(t)) score += 8;
+                    else {
+                        // 部分匹配
+                        for (const s of srcTags) {
+                            if (t.includes(s) || s.includes(t)) { score += 3; break; }
+                        }
+                    }
+                });
+                // 标题词重合
+                const title = (v.name || '').toLowerCase();
+                const words = srcTitle.split(/[\s·・|｜・、，,。.（）()【】\[\]]+/).filter(w => w.length >= 2);
+                words.forEach(w => { if (title.includes(w)) score += 4; });
+                // 时长相近
+                const d = this.parseDuration(v.duration);
+                if (srcDur > 0 && d > 0) {
+                    const ratio = Math.min(srcDur, d) / Math.max(srcDur, d);
+                    score += ratio * 6;
+                }
+                // 同来源加分
+                if (this.getVideoSource(v) === this.getVideoSource(video)) score += 2;
+                return { v, score };
+            })
+            .filter(x => x.score > 6)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit);
+
+        return scored;
+    },
+
+    renderSimilar(video) {
+        const list = document.getElementById('similarList');
+        const section = document.getElementById('similarSection');
+        if (!list) return;
+        const sims = this.computeSimilar(video, 5);
+        if (!sims || sims.length === 0) {
+            if (section) section.style.display = 'none';
+            return;
+        }
+        if (section) section.style.display = '';
+
+        list.innerHTML = sims.map(({ v, score }) => {
+            let cover = v.cover || '';
+            if (cover && !cover.startsWith('http') && !cover.startsWith('data:')) {
+                if (!cover.startsWith('covers/') && !cover.startsWith('/')) cover = 'covers/' + cover;
+                cover = './' + cover.replace(/^\//, '');
+            }
+            const src = this.getVideoSource(v) === 'youtube' ? 'YouTube' : 'B站';
+            const matchPct = Math.min(99, Math.round(score));
+            return `
+                <div class="similar-item" data-id="${this.escAttr(this.genId(v))}">
+                    <img src="${this.escAttr(cover)}" alt="" loading="lazy">
+                    <div class="similar-item-body">
+                        <div class="similar-item-title">${this.escHtml(v.name)}</div>
+                        <div class="similar-item-meta">
+                            <span>⏱ ${this.escHtml(v.duration || '')}</span>
+                            <span>${src}</span>
+                        </div>
+                    </div>
+                    <div class="similar-item-score">${matchPct}% 匹配</div>
+                </div>
+            `;
+        }).join('');
+
+        list.querySelectorAll('.similar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const v = this.state.videoList.find(x => this.genId(x) === item.dataset.id);
+                if (v) this.openVideoModal(v);
+            });
+        });
     },
 
     // ==================== 数据同步（导出/导入/同步码） ====================
@@ -615,7 +1081,7 @@ const VideoApp = {
         {
             name: '触发音',
             icon: '🎵',
-            tags: ['口腔音', '敲击音', '刮擦', '抓挠', '摩擦音', '轻语', '耳语', '英文轻语', '翻书', '刷子音', '剪刀音', '梳音', '水声', '叮当声', '音叉', '白噪音', '棕噪音', '雨声', '呼吸声', '吹气', '泡沫音', '涂抹', '口水画', '手指灯音效', '双耳分听', '叠层声音', '刺痛', '刮耳', '采耳', '无对话']
+            tags: ['口腔音', '敲击音', '刮擦', '抓挠', '摩擦音', '轻语', '耳语', '英文轻语', '翻书', '刷子音', '剪刀音', '梳音', '水声', '叮当声', '音叉', '白噪音', '棕噪音', '雨声', '呼吸声', '吹气', '泡沫音', '涂抹', '口水画', '手指灯音效', '双耳分听', '叠层声音', '刺痛', '刮耳', '采耳', '无对话', '有人声']
         },
         {
             name: '视觉',
@@ -645,12 +1111,12 @@ const VideoApp = {
         {
             name: '风格',
             icon: '🎬',
-            tags: ['沉浸式', '竖屏', '合集', 'Lofi', '微恐']
+            tags: ['沉浸式', '竖屏', '合集', 'Lofi', '微恐', '角色扮演']
         },
         {
             name: '特殊',
             icon: '⚡',
-            tags: ['充电专属', '能量音乐', 'Emoji触发', '蓝色触发', '粉色触发']
+            tags: ['充电专属', '能量音乐', 'Emoji触发', '蓝色触发', '粉色触发', '英文']
         }
     ],
 
@@ -1146,6 +1612,7 @@ const VideoApp = {
         if (modal) modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         this.updatePlaylistNav();
+        this.renderSimilar(videoItem);
     },
 
     closeVideoModal() {

@@ -1,0 +1,51 @@
+# 每周三、周六自动同步 B 站投稿
+# 有新视频时自动 commit + push 到 main，GitHub Pages 会自动更新
+
+name: Sync Bilibili Videos
+
+on:
+  schedule:
+    # 每周三、周六 10:00 UTC（北京时间 18:00）
+    - cron: '0 10 * * 3,6'
+  workflow_dispatch: {}   # 也可以手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Sync videos
+        run: python sync_bilibili_search.py
+        working-directory: .
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet -- videos.json covers/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "没有新的视频。"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "检测到更新，准备提交。"
+          fi
+
+      - name: Commit & Push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add videos.json covers/
+          git commit -m "🔄 自动同步 B 站投稿 $(date +'%Y-%m-%d')"
+          git push
