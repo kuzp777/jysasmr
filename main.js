@@ -35,11 +35,17 @@ const VideoApp = {
     },
 
     // 存储层：优先 UserData（支持云端同步），否则退化到 localStorage
+    _lsCache: new Map(),
+
     lsGet(key, fallback) {
         if (window.UserData && UserData.lsGet) return UserData.lsGet(key, fallback);
+        // ★ 内存缓存，避免每次渲染都 JSON.parse
+        if (this._lsCache.has(key)) return this._lsCache.get(key);
         try {
             const raw = localStorage.getItem(key);
-            return raw == null ? fallback : JSON.parse(raw);
+            const val = raw == null ? fallback : JSON.parse(raw);
+            this._lsCache.set(key, val);
+            return val;
         } catch (e) {
             return fallback;
         }
@@ -47,6 +53,7 @@ const VideoApp = {
 
     lsSet(key, value) {
         if (window.UserData && UserData.lsSet) return UserData.lsSet(key, value);
+        this._lsCache.set(key, value);   // ★ 同步更新缓存
         try {
             localStorage.setItem(key, JSON.stringify(value));
         } catch (e) { /* 私密模式下忽略 */ }
@@ -100,8 +107,16 @@ const VideoApp = {
         return this.lsGet(this.STORAGE_KEYS.favorites, []);
     },
 
+    _favSet: null,
+
+    _getFavSet() {
+        // ★ Set 缓存，O(1) 查询
+        if (!this._favSet) this._favSet = new Set(this.loadFavorites());
+        return this._favSet;
+    },
+
     isFavorite(id) {
-        return this.loadFavorites().includes(id);
+        return this._getFavSet().has(id);
     },
 
     toggleFavorite(id) {
@@ -113,6 +128,7 @@ const VideoApp = {
             if (favs.length > 500) favs = favs.slice(0, 500);
         }
         this.lsSet(this.STORAGE_KEYS.favorites, favs);
+        this._favSet = new Set(favs);   // ★ 失效重建
         return favs.includes(id);
     },
 
@@ -126,14 +142,21 @@ const VideoApp = {
         hist.unshift({ id, name: name || '', ts: Date.now() });
         if (hist.length > 100) hist = hist.slice(0, 100);
         this.lsSet(this.STORAGE_KEYS.history, hist);
+        this._watchedSet = new Set(hist.map(h => h.id));   // ★ 失效重建
     },
 
+    _watchedSet: null,
+
     isWatched(id) {
-        return this.loadHistory().some(h => h.id === id);
+        if (!this._watchedSet) {
+            this._watchedSet = new Set(this.loadHistory().map(h => h.id));
+        }
+        return this._watchedSet.has(id);
     },
 
     clearHistory() {
         this.lsSet(this.STORAGE_KEYS.history, []);
+        this._watchedSet = new Set();
     },
 
     // ==================== 播放列表（今晚序列） ====================
@@ -381,36 +404,34 @@ const VideoApp = {
         this.updateFilterCount();
     },
 
-    // ==================== 引导选片：今晚听什么 ====================
+    // ==================== 今晚听什么：多条件并列筛选 ====================
     guideState: {
-        step: 1,
-        duration: null,
-        mood: null,
-        voice: null,
+        duration: new Set(),   // 多选（时长区间互斥本可单选，保留多选不影响）
+        mood: 'any',           // ★ 单选
+        voice: 'any',          // 单选
+        fromGuide: false,      // 标记：弹窗是否由引导打开
     },
 
     MOOD_RULES: {
-        relax: ['助眠', '放松', '解压', '按摩', '头疗', '轻语', '冥想', '睡眠引导', '疗愈', '护肤', '化妆'],
+        relax: ['助眠', '放松', '解压', '按摩', '头疗', '轻语', '睡眠引导', '疗愈', '护肤', '化妆', '陪伴', '情绪安抚'],
         focus: ['专注力测试', '指令', '听力测试', '检查', '专注力'],
-        asmr: ['敲击音', '口腔音', '采耳', '抓挠', '刮擦', '触发音', '白噪音', '双耳分听', '叠层声音'],
-    },
-
-    VOICE_RULES: {
-        talk: ['轻语', '耳语', '对话', '有人声', '人声', '角色扮演'],
-        notalk: ['无对话', 'No Talking', 'no talking'],
+        asmr: ['敲击音', '口腔音', '采耳', '抓挠', '刮擦', '触发音', '白噪音', '双耳分听', '叠层声音', '水声', '雨声'],
+        heal: ['冥想', '正念', '能量', '疗愈', '睡眠引导', '情绪安抚', '大脑放松', '酥麻'],
+        scene: ['角色扮演', '冷脸上司', '吸血鬼', '法医', '机器人维修', '猫咪', '开箱'],
     },
 
     bindGuideEvent() {
         const openBtn = document.getElementById('guideBtn');
         const modal = document.getElementById('guideModal');
         const closeBtn = document.getElementById('guideClose');
-        const backBtn = document.getElementById('guideBack');
-        const againBtn = document.getElementById('guideAgain');
+        const clearBtn = document.getElementById('guideClear');
+        const randomBtn = document.getElementById('guideRandom');
         if (!openBtn || !modal) return;
 
         openBtn.addEventListener('click', () => {
-            this.guideState = { step: 1, duration: null, mood: null, voice: null };
-            this.renderGuideStep();
+            this.guideState = { duration: new Set(), mood: 'any', voice: 'any', fromGuide: true };
+            this.syncGuideChips();
+            this.renderGuideResults();
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         });
@@ -418,36 +439,59 @@ const VideoApp = {
         if (closeBtn) closeBtn.addEventListener('click', () => this.closeGuide());
         modal.addEventListener('click', e => { if (e.target === modal) this.closeGuide(); });
 
-        if (backBtn) backBtn.addEventListener('click', () => {
-            if (this.guideState.step > 1) {
-                this.guideState.step--;
-                this.renderGuideStep();
-            }
+        if (clearBtn) clearBtn.addEventListener('click', () => {
+            this.guideState = { duration: new Set(), mood: 'any', voice: 'any', fromGuide: true };
+            this.syncGuideChips();
+            this.renderGuideResults();
         });
 
-        if (againBtn) againBtn.addEventListener('click', () => this.pickGuideResult());
+        if (randomBtn) randomBtn.addEventListener('click', () => {
+            const list = this.getGuideMatches();
+            if (list.length === 0) return;
+            const pick = list[Math.floor(Math.random() * list.length)];
+            this.closeGuide();
+            this.openVideoModal(pick);
+        });
 
-        // 三组选项
-        const bindOpts = (wrapId, key) => {
-            const wrap = document.getElementById(wrapId);
-            if (!wrap) return;
-            wrap.addEventListener('click', e => {
-                const btn = e.target.closest('.guide-opt');
+        // 时长：多选 toggle
+        const durWrap = document.getElementById('guideDuration');
+        if (durWrap) durWrap.addEventListener('click', e => {
+            const btn = e.target.closest('.guide-chip');
+            if (!btn) return;
+            const val = btn.dataset.val;
+            const set = this.guideState.duration;
+            if (set.has(val)) set.delete(val);
+            else set.add(val);
+            btn.classList.toggle('active', set.has(val));
+            this.renderGuideResults();
+        });
+
+        // 氛围：★ 单选
+        const moodWrap = document.getElementById('guideMood');
+        if (moodWrap) moodWrap.addEventListener('click', e => {
+            const btn = e.target.closest('.guide-chip');
+            if (!btn) return;
+            const val = btn.dataset.val;
+            // 再次点击已选中的 → 取消（回到不限）
+            this.guideState.mood = (this.guideState.mood === val) ? 'any' : val;
+            moodWrap.querySelectorAll('.guide-chip').forEach(b =>
+                b.classList.toggle('active', b.dataset.val === this.guideState.mood)
+            );
+            this.renderGuideResults();
+        });
+
+        // 人声：单选
+        const voiceWrap = document.getElementById('guideVoice');
+        if (voiceWrap) {
+            voiceWrap.addEventListener('click', e => {
+                const btn = e.target.closest('.guide-chip');
                 if (!btn) return;
-                this.guideState[key] = btn.dataset.val;
-                // 进入下一步或出结果
-                if (this.guideState.step < 3) {
-                    this.guideState.step++;
-                    this.renderGuideStep();
-                } else {
-                    this.guideState.step = 4;
-                    this.pickGuideResult();
-                }
+                this.guideState.voice = btn.dataset.val;
+                voiceWrap.querySelectorAll('.guide-chip').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.renderGuideResults();
             });
-        };
-        bindOpts('guideDuration', 'duration');
-        bindOpts('guideMood', 'mood');
-        bindOpts('guideVoice', 'voice');
+        }
     },
 
     closeGuide() {
@@ -456,157 +500,134 @@ const VideoApp = {
         document.body.style.overflow = '';
     },
 
-    renderGuideStep() {
-        const step = this.guideState.step;
-        document.querySelectorAll('.guide-step').forEach(el => {
-            const n = parseInt(el.dataset.step, 10);
-            el.hidden = n !== step;
-        });
-        const progress = document.getElementById('guideProgress');
-        if (progress) {
-            progress.textContent = step >= 4 ? '为你挑选完成' : `第 ${step} / 3 步`;
-        }
-        const backBtn = document.getElementById('guideBack');
-        if (backBtn) backBtn.hidden = step <= 1 || step >= 4;
-        const againBtn = document.getElementById('guideAgain');
-        if (againBtn) againBtn.hidden = step < 4;
-        const subtitle = document.getElementById('guideSubtitle');
-        if (subtitle) {
-            subtitle.textContent = step >= 4 ? '不喜欢？换个角度再挑一个' : '三步帮你挑一个，选择困难退散';
-        }
+    syncGuideChips() {
+        const { duration, mood, voice } = this.guideState;
+        const d = document.getElementById('guideDuration');
+        const m = document.getElementById('guideMood');
+        const v = document.getElementById('guideVoice');
+        if (d) d.querySelectorAll('.guide-chip').forEach(b => b.classList.toggle('active', duration.has(b.dataset.val)));
+        if (m) m.querySelectorAll('.guide-chip').forEach(b => b.classList.toggle('active', b.dataset.val === mood));
+        if (v) v.querySelectorAll('.guide-chip').forEach(b => b.classList.toggle('active', b.dataset.val === voice));
     },
 
-    scoreGuideVideo(v) {
+    // ★ AND 语义：返回每项条件是否满足
+    matchGuideVideo(v) {
         const { duration, mood, voice } = this.guideState;
         const sec = this.parseDuration(v.duration);
-        let score = 0;
+        const tags = (v.keywords || []).map(x => x.toLowerCase());
+        const title = (v.name || '').toLowerCase();
 
-        // 时长匹配（0–40 分）
-        const ranges = {
-            short: [0, 300], medium: [300, 1200], long: [1200, 3600], xlong: [3600, Infinity],
-        };
-        const r = ranges[duration];
-        if (r) {
-            if (sec >= r[0] && sec < r[1]) score += 40;
-            else if (sec < r[0]) score += 15; // 短了也行
-            else score += 10;
+        // 1) 时长：命中任一选中区间即可（区间本身互斥）
+        if (duration.size > 0) {
+            const ranges = {
+                short: [0, 300], medium: [300, 1200], long: [1200, 3600], xlong: [3600, Infinity],
+            };
+            let hit = false;
+            for (const k of duration) {
+                const r = ranges[k];
+                if (r && sec >= r[0] && sec < r[1]) { hit = true; break; }
+            }
+            if (!hit) return false;
         }
 
-        // 氛围匹配（0–40）
-        const tags = (v.keywords || []).map(t => t.toLowerCase());
-        const title = (v.name || '').toLowerCase();
+        // 2) 氛围：单选，必须命中
         if (mood && mood !== 'any') {
             const rules = this.MOOD_RULES[mood] || [];
-            const hit = rules.filter(rule => {
-                const lr = rule.toLowerCase();
-                return tags.some(t => t.includes(lr)) || title.includes(lr);
-            }).length;
-            score += Math.min(40, hit * 12);
-        } else {
-            score += 20;
-        }
-
-        // 人声匹配（0–20）
-        if (voice && voice !== 'any') {
-            const rules = this.VOICE_RULES[voice] || [];
             const hit = rules.some(rule => {
                 const lr = rule.toLowerCase();
-                return tags.some(t => t.includes(lr)) || title.includes(lr);
+                return tags.some(x => x.includes(lr)) || title.includes(lr);
             });
-            score += hit ? 20 : 5;
-        } else {
-            score += 10;
+            if (!hit) return false;
         }
 
-        return score;
+        // 3) 人声：单选，必须命中
+        if (voice === 'talk') {
+            if (!tags.includes('有人声')) return false;
+        } else if (voice === 'notalk') {
+            if (!tags.includes('无对话')) return false;
+        }
+
+        return true;
     },
 
-    pickGuideResult() {
+
+    getGuideMatches() {
+        const { duration, mood, voice } = this.guideState;
+        const hasCond = duration.size > 0 || (mood && mood !== 'any') || voice !== 'any';
         const pool = this.state.videoList || [];
-        if (pool.length === 0) return;
-        const scored = pool
-            .map(v => ({ v, s: this.scoreGuideVideo(v) }))
-            .sort((a, b) => b.s - a.s);
-        // 从前 20 名里随机抽一个，避免每次都一样
-        const top = scored.slice(0, Math.min(20, scored.length));
-        const pick = top[Math.floor(Math.random() * top.length)].v;
-        this.renderGuideResult(pick, scored);
+        if (!hasCond) return pool;
+        // ★ 所有条件必须同时满足
+        return pool.filter(v => this.matchGuideVideo(v));
     },
 
-    renderGuideResult(video, scored) {
-        const box = document.getElementById('guideResult');
+
+    renderGuideResults() {
+        const box = document.getElementById('guideResults');
+        const countEl = document.getElementById('guideResultsCount');
         if (!box) return;
 
-        let cover = video.cover || '';
-        if (cover && !cover.startsWith('http') && !cover.startsWith('data:')) {
-            if (!cover.startsWith('covers/') && !cover.startsWith('/')) cover = 'covers/' + cover;
-            cover = './' + cover.replace(/^\//, '');
+        const matches = this.getGuideMatches();
+        const total = (this.state.videoList || []).length;
+
+        if (countEl) {
+            const { duration, mood, voice } = this.guideState;
+            const cond = duration.size + ((mood && mood !== 'any') ? 1 : 0) + (voice !== 'any' ? 1 : 0);
+            countEl.innerHTML = cond > 0
+                ? `满足全部条件的 <em>${matches.length}</em> 个`
+                : `全部 <em>${total}</em> 个 · 未设条件`;
         }
-        const src = this.getVideoSource(video);
-        const srcLabel = src === 'youtube' ? 'YouTube' : 'B 站';
-        const date = (video.uploadTime || '').slice(0, 10);
 
-        // 3 个备选
-        const others = (scored || [])
-            .filter(x => x.v !== video)
-            .slice(0, 3)
-            .map(x => x.v);
+        if (matches.length === 0) {
+            box.innerHTML = '<div class="guide-empty">没有匹配的视频<br>试试放宽条件</div>';
+            return;
+        }
 
-        box.innerHTML = `
-            <div class="guide-result-card" data-id="${this.escAttr(this.genId(video))}">
-                <img src="${this.escAttr(cover)}" alt="" loading="lazy">
-                <div class="guide-result-body">
-                    <div class="guide-result-title">${this.escHtml(video.name)}</div>
-                    <div class="guide-result-meta">
-                        <span>📅 ${this.escHtml(date)}</span>
-                        <span>⏱ ${this.escHtml(video.duration || '')}</span>
-                        <span>▶ ${srcLabel}</span>
-                    </div>
-                    <div class="guide-result-actions">
-                        <button class="btn-primary sm" data-act="play">▶ 立即播放</button>
-                        <button class="btn-ghost sm" data-act="next">🔄 换一个</button>
-                    </div>
-                </div>
-            </div>
-            ${others.length ? `<div class="guide-subtitle" style="margin-top:6px">备选</div>` : ''}
-            ${others.map(o => {
-                let oc = o.cover || '';
-                if (oc && !oc.startsWith('http') && !oc.startsWith('data:')) {
-                    if (!oc.startsWith('covers/') && !oc.startsWith('/')) oc = 'covers/' + oc;
-                    oc = './' + oc.replace(/^\//, '');
-                }
-                return `
-                    <div class="guide-result-card" data-id="${this.escAttr(this.genId(o))}" style="padding:8px">
-                        <img src="${this.escAttr(oc)}" alt="" style="width:100px;height:56px">
-                        <div class="guide-result-body">
-                            <div class="guide-result-title" style="font-size:13px">${this.escHtml(o.name)}</div>
-                            <div class="guide-result-meta">
-                                <span>⏱ ${this.escHtml(o.duration || '')}</span>
-                            </div>
+        // 最多显示 30 条
+        const show = matches.slice(0, 30);
+        box.innerHTML = show.map(v => {
+            let cover = v.cover || '';
+            if (cover && !cover.startsWith('http') && !cover.startsWith('data:')) {
+                if (!cover.startsWith('covers/') && !cover.startsWith('/')) cover = 'covers/' + cover;
+                cover = './' + cover.replace(/^\//, '');
+            }
+            const src = this.getVideoSource(v) === 'youtube' ? 'YouTube' : 'B站';
+            return `
+                <div class="guide-card-item" data-id="${this.escAttr(this.genId(v))}">
+                    <img src="${this.escAttr(cover)}" alt="" loading="lazy">
+                    <div class="guide-card-item-body">
+                        <div class="guide-card-item-title">${this.escHtml(v.name)}</div>
+                        <div class="guide-card-item-meta">
+                            <span>⏱ ${this.escHtml(v.duration || '')}</span>
+                            <span>▶ ${src}</span>
+                            ${(v.keywords || []).slice(0, 2).map(k => `<span>${this.escHtml(k)}</span>`).join('')}
                         </div>
                     </div>
-                `;
-            }).join('')}
-        `;
+                    <div class="guide-card-item-act">
+                        <button class="guide-mini-btn" data-act="play" title="播放">▶</button>
+                        <button class="guide-mini-btn" data-act="fav" title="收藏">☆</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
-        // 绑定播放
-        box.querySelectorAll('.guide-result-card').forEach(card => {
-            const id = card.dataset.id;
-            const video2 = this.state.videoList.find(x => this.genId(x) === id);
-            if (!video2) return;
-            card.addEventListener('click', (e) => {
+        box.querySelectorAll('.guide-card-item').forEach(item => {
+            const v = this.state.videoList.find(x => this.genId(x) === item.dataset.id);
+            if (!v) return;
+            item.addEventListener('click', e => {
                 const act = e.target.dataset && e.target.dataset.act;
-                if (act === 'next') {
-                    this.pickGuideResult();
+                if (act === 'fav') {
+                    e.stopPropagation();
+                    const id = this.genId(v);
+                    const nowFav = this.toggleFavorite(id);
+                    e.target.textContent = nowFav ? '★' : '☆';
                     return;
                 }
-                // 点任意位置 → 播放
+                // ★ 从引导打开：记住来源，关闭时返回引导菜单
+                this.guideState.fromGuide = true;
                 this.closeGuide();
-                this.openVideoModal(video2);
+                this.openVideoModal(v);
             });
         });
-
-        this.renderGuideStep();
     },
 
     // ==================== 系列合集 ====================
@@ -1168,9 +1189,12 @@ const VideoApp = {
 
     bindSearchEvent() {
         const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                // 从搜索框同步到 activeKeywords
+        if (!searchInput) return;
+        // ★ 防抖 180ms，避免每敲一个字就全量重渲染
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
                 const val = searchInput.value.trim();
                 this.state.activeKeywords.clear();
                 if (val) {
@@ -1180,8 +1204,8 @@ const VideoApp = {
                 }
                 this.syncTagHighlight();
                 this.filterVideos();
-            });
-        }
+            }, 180);
+        });
     },
 
     // 同步标签高亮状态
@@ -1572,8 +1596,19 @@ const VideoApp = {
         const modal = document.getElementById('videoModal');
         const player = document.getElementById('videoPlayer') || document.getElementById('bilibiliPlayer');
         if (modal) modal.style.display = 'none';
-        if (player) player.src = '';
+        if (player) player.src = 'about:blank';
         document.body.style.overflow = '';
+
+        // ★ 从引导打开的视频，关闭后回到引导菜单（而非主页）
+        if (this.guideState && this.guideState.fromGuide) {
+            this.guideState.fromGuide = false;
+            const guide = document.getElementById('guideModal');
+            if (guide) {
+                guide.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                return;
+            }
+        }
     },
 
     // ==================== 播放器：横竖屏 + 全屏 + 小窗 ====================
@@ -1631,6 +1666,50 @@ const VideoApp = {
 
         // 四角缩放
         this.bindMiniResize();
+
+        // ★ 点按唤醒/关闭缩放手柄（点击小窗标题栏空白处切换）
+        this.bindHandleToggle();
+    },
+
+    bindHandleToggle() {
+        const mini = document.getElementById('miniPlayer');
+        const miniHeader = document.getElementById('miniHeader');
+        if (!mini || !miniHeader) return;
+
+        let downX = 0, downY = 0, moved = false;
+        miniHeader.addEventListener('mousedown', (e) => {
+            downX = e.clientX; downY = e.clientY; moved = false;
+        });
+        miniHeader.addEventListener('mousemove', (e) => {
+            if (Math.abs(e.clientX - downX) > 4 || Math.abs(e.clientY - downY) > 4) moved = true;
+        });
+        miniHeader.addEventListener('mouseup', (e) => {
+            // 点到按钮上不切换
+            if (e.target.closest('button, .mini-icon')) return;
+            // 拖拽过就不算点击
+            if (moved) return;
+            // ★ 切换手柄显示
+            const on = mini.classList.toggle('handles-on');
+            // 触屏提示
+            if (on) this.toast('已唤醒缩放手柄 · 拖四角调整大小');
+        });
+
+        // 触屏
+        miniHeader.addEventListener('touchstart', (e) => {
+            const t = e.touches[0];
+            downX = t.clientX; downY = t.clientY; moved = false;
+        }, { passive: true });
+        miniHeader.addEventListener('touchmove', (e) => {
+            const t = e.touches[0];
+            if (Math.abs(t.clientX - downX) > 4 || Math.abs(t.clientY - downY) > 4) moved = true;
+        }, { passive: true });
+        miniHeader.addEventListener('touchend', (e) => {
+            const tgt = e.target;
+            if (tgt && tgt.closest && tgt.closest('button, .mini-icon')) return;
+            if (moved) return;
+            const on = mini.classList.toggle('handles-on');
+            if (on) this.toast('已唤醒缩放手柄 · 拖四角调整大小');
+        });
     },
 
     // ---- 四角缩放 ----
@@ -1661,11 +1740,18 @@ const VideoApp = {
                 const pt = e.touches ? e.touches[0] : e;
                 const sx = pt.clientX, sy = pt.clientY;
 
+                let rafId2 = null, pending = null;
                 const onMove = (e2) => {
                     e2.preventDefault();
                     const p = e2.touches ? e2.touches[0] : e2;
                     const dx = p.clientX - sx;
                     const dy = p.clientY - sy;
+                    pending = { dx, dy };
+                    if (rafId2) return;
+                    rafId2 = requestAnimationFrame(() => {
+                        rafId2 = null;
+                        if (!pending) return;
+                        const { dx, dy } = pending;
 
                     const { minW, minH, maxW, maxH } = this.MINI_SIZE;
                     let w = startW, h = startH;
@@ -1694,10 +1780,12 @@ const VideoApp = {
                     }
 
                     this.applyMiniSize(w, h);
+                    });
                 };
 
                 const onUp = () => {
                     handle.classList.remove('active');
+                    if (rafId2) { cancelAnimationFrame(rafId2); rafId2 = null; }
                     window.removeEventListener('mousemove', onMove);
                     window.removeEventListener('touchmove', onMove);
                     window.removeEventListener('mouseup', onUp);
@@ -1805,6 +1893,7 @@ const VideoApp = {
 
         // 显示小窗
         mini.style.display = 'flex';
+        mini.classList.remove('handles-on');  // ★ 默认隐藏手柄，不挡关闭按钮
 
         // ★ 无缝切换：同一视频不重载；不同视频平滑换 src
         const cur = miniIframe.getAttribute('src') || '';
@@ -1842,7 +1931,10 @@ const VideoApp = {
         const mini = document.getElementById('miniPlayer');
         const miniIframe = document.getElementById('miniIframe');
         if (miniIframe) miniIframe.src = 'about:blank';
-        if (mini) mini.style.display = 'none';
+        if (mini) {
+            mini.style.display = 'none';
+            mini.classList.remove('handles-on');  // ★ 收起手柄
+        }
 
         if (backToModal && this.state.currentPlayingVideo) {
             this.openVideoModal(this.state.currentPlayingVideo);
@@ -1855,6 +1947,9 @@ const VideoApp = {
         if (!mini) return;
 
         const onDown = (e) => {
+            // ★ 点按钮/图标时不启动拖拽，避免 preventDefault 吞掉 click
+            const tgt = e.target;
+            if (tgt && tgt.closest && tgt.closest('button, .mini-icon, a')) return;
             dragging = true;
             const pt = e.touches ? e.touches[0] : e;
             sx = pt.clientX; sy = pt.clientY;
@@ -1862,21 +1957,29 @@ const VideoApp = {
             ox = rect.left; oy = rect.top;
             e.preventDefault();
         };
+        let rafId = null, lastX = 0, lastY = 0;
         const onMove = (e) => {
             if (!dragging) return;
             const pt = e.touches ? e.touches[0] : e;
-            let nx = ox + (pt.clientX - sx);
-            let ny = oy + (pt.clientY - sy);
+            lastX = ox + (pt.clientX - sx);
+            lastY = oy + (pt.clientY - sy);
+            // ★ rAF 节流：每帧只更新一次
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+            let nx = lastX, ny = lastY;
             // 边界限制
             nx = Math.max(0, Math.min(nx, window.innerWidth - mini.offsetWidth));
             ny = Math.max(0, Math.min(ny, window.innerHeight - mini.offsetHeight));
             mini.style.left = nx + 'px';
             mini.style.top = ny + 'px';
             mini.style.right = 'auto';
+            });
         };
         const onUp = () => {
             if (!dragging) return;
             dragging = false;
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
             const rect = mini.getBoundingClientRect();
             this.lsSet('jys_mini_pos', { left: Math.round(rect.left), top: Math.round(rect.top) });
         };

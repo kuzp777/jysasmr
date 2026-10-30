@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JY's ASMR · 睡前选片台</title>
+    <title>JY's ASMR · 粉丝收集站</title>
     <meta name="description" content="JY's ASMR 助眠视频选片库。按触发音、时长、标签筛选，一键随机抽选，今晚听什么不再纠结。">
-    <meta property="og:title" content="JY's ASMR · 睡前选片台">
+    <meta property="og:title" content="JY's ASMR · 粉丝收集站">
     <meta property="og:description" content="按触发音、时长、标签筛选助眠视频，一键随机抽选。">
     <meta property="og:type" content="website">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>">
@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://www.bilibili.com" crossorigin>
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
     <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
-    <link rel="stylesheet" href="style.css?v=20261028h">
+    <link rel="stylesheet" href="style.css?v=20261028l">
 </head>
 <body>
 
@@ -26,7 +26,7 @@
         <a class="brand" href="./">
             <span class="brand-mark">🌙</span>
             <span class="brand-text">JY's ASMR</span>
-            <span class="brand-sub">睡前选片台</span>
+            <span class="brand-sub">粉丝收集站</span>
         </a>
 
         <div class="search-wrap">
@@ -160,7 +160,7 @@
 <!-- ========== 页脚 ========== -->
 <footer class="footer">
     <div class="footer-inner">
-        <p>© JY's ASMR · 粉丝选片台 · 视频来源
+        <p>© JY's ASMR · 粉丝收集站 · 视频来源
             <a href="https://space.bilibili.com/176647698" target="_blank" rel="noopener">B站</a> ·
             <a href="https://www.youtube.com/@JYs_ASMR" target="_blank" rel="noopener">YouTube</a>
         </p>
@@ -168,56 +168,54 @@
     </div>
 </footer>
 
-<!-- ========== 引导选片弹窗：今晚听什么 ========== -->
+<!-- ========== 今晚听什么：多条件并列筛选 + 实时结果 ========== -->
 <div id="guideModal" class="modal-overlay" style="display:none">
     <div class="modal-card guide-card">
         <button class="modal-close" id="guideClose" aria-label="关闭">×</button>
         <div class="modal-header">✨ 今晚听什么</div>
-        <div class="guide-subtitle" id="guideSubtitle">三步帮你挑一个，选择困难退散</div>
+        <div class="guide-subtitle" id="guideSubtitle">点选条件，下方实时出结果 · 单选多选都行</div>
 
-        <!-- 步骤 1：时长 -->
-        <div class="guide-step" data-step="1">
-            <div class="guide-q">今晚想听多久？</div>
-            <div class="guide-options" id="guideDuration">
-                <button class="guide-opt" data-val="short">⚡ 不到 5 分钟<br><em>快速助眠</em></button>
-                <button class="guide-opt" data-val="medium">☕ 5–20 分钟<br><em>刚好入睡</em></button>
-                <button class="guide-opt" data-val="long">🌙 20–60 分钟<br><em>慢慢放松</em></button>
-                <button class="guide-opt" data-val="xlong">🕐 1 小时以上<br><em>整夜陪伴</em></button>
+        <!-- 筛选条件 -->
+        <div class="guide-filters">
+            <div class="guide-row">
+                <div class="guide-label">⏱ 时长</div>
+                <div class="guide-chips" id="guideDuration">
+                    <button class="guide-chip" data-val="short">⚡ &lt;5 分钟</button>
+                    <button class="guide-chip" data-val="medium">☕ 5–20 分钟</button>
+                    <button class="guide-chip" data-val="long">🌙 20–60 分钟</button>
+                    <button class="guide-chip" data-val="xlong">🕐 1 小时+</button>
+                </div>
+            </div>
+            <div class="guide-row">
+                <div class="guide-label">🎧 氛围</div>
+                <div class="guide-chips" id="guideMood">
+                    <button class="guide-chip" data-val="relax">🧘 放松助眠</button>
+                    <button class="guide-chip" data-val="focus">🎯 专注/指令</button>
+                    <button class="guide-chip" data-val="asmr">🎵 触发音</button>
+                    <button class="guide-chip" data-val="heal">💜 疗愈冥想</button>
+                    <button class="guide-chip" data-val="scene">🎭 角色扮演</button>
+                </div>
+            </div>
+            <div class="guide-row">
+                <div class="guide-label">🗣 人声</div>
+                <div class="guide-chips" id="guideVoice">
+                    <button class="guide-chip single" data-val="talk">有人声</button>
+                    <button class="guide-chip single" data-val="notalk">无对话</button>
+                    <button class="guide-chip single active" data-val="any">不限</button>
+                </div>
+            </div>
+            <div class="guide-actions">
+                <button id="guideClear" class="btn-ghost sm">↺ 清空</button>
+                <button id="guideRandom" class="btn-primary sm">🎲 从结果里抽一个</button>
             </div>
         </div>
 
-        <!-- 步骤 2：氛围 -->
-        <div class="guide-step" data-step="2" hidden>
-            <div class="guide-q">今晚的心情？</div>
-            <div class="guide-options" id="guideMood">
-                <button class="guide-opt" data-val="relax">🧘 放松助眠<br><em>轻语、按摩、头疗</em></button>
-                <button class="guide-opt" data-val="focus">🎯 专注/清醒<br><em>专注力测试、指令</em></button>
-                <button class="guide-opt" data-val="asmr">🎵 触发音<br><em>敲击、口腔、采耳</em></button>
-                <button class="guide-opt" data-val="any">🎲 都行<br><em>不限</em></button>
-            </div>
+        <!-- 实时结果 -->
+        <div class="guide-results-head">
+            <span class="guide-results-count" id="guideResultsCount">全部 385 个</span>
+            <span class="guide-results-hint">点击播放</span>
         </div>
-
-        <!-- 步骤 3：人声 -->
-        <div class="guide-step" data-step="3" hidden>
-            <div class="guide-q">要不要人声？</div>
-            <div class="guide-options" id="guideVoice">
-                <button class="guide-opt" data-val="talk">🗣 有人声<br><em>轻语、对话、耳语</em></button>
-                <button class="guide-opt" data-val="notalk">🤫 无对话<br><em>纯触发音</em></button>
-                <button class="guide-opt" data-val="any">🎲 都行<br><em>不限</em></button>
-            </div>
-        </div>
-
-        <!-- 结果 -->
-        <div class="guide-step" data-step="4" hidden>
-            <div class="guide-q">为你挑选的睡前视频</div>
-            <div id="guideResult" class="guide-result"></div>
-        </div>
-
-        <div class="guide-footer">
-            <button id="guideBack" class="btn-ghost sm" hidden>← 上一步</button>
-            <span class="guide-progress" id="guideProgress">第 1 / 3 步</span>
-            <button id="guideAgain" class="btn-ghost sm" hidden>🔄 再挑一个</button>
-        </div>
+        <div class="guide-results" id="guideResults"></div>
     </div>
 </div>
 
@@ -319,8 +317,8 @@
     </aside>
 </div>
 
-<script src="user-data.js?v=20261028h"></script>
-<script src="main.js?v=20261028h"></script>
+<script src="user-data.js?v=20261028l"></script>
+<script src="main.js?v=20261028l"></script>
 <script>
 // PWA Service Worker
 if ('serviceWorker' in navigator) {
